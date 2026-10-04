@@ -1,5 +1,5 @@
 ---
-name: architecture-stress-test
+name: architecture_stress_test
 description: "Stress-test architectures from six different perspectives"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

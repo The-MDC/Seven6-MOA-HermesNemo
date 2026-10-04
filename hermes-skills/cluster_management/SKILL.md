@@ -1,5 +1,5 @@
 ---
-name: cluster-management
+name: cluster_management
 description: "Manage and monitor Kubernetes clusters"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

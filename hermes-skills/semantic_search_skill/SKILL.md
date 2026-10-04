@@ -1,5 +1,5 @@
 ---
-name: semantic-search-skill
+name: semantic_search_skill
 description: "Perform semantic search across documents and codebases"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

@@ -1,5 +1,5 @@
 ---
-name: data-visualization
+name: data_visualization
 description: "Create interactive data visualizations and charts"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

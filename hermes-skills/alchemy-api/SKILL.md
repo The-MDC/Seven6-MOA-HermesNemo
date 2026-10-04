@@ -1,14 +1,7 @@
 ---
 name: alchemy-api
-description: "name: alchemy-api
-description: >
-  Integrates Alchemy blockchain APIs using an API key for EVM JSON-RPC calls, token balances,
-  NFT ownership/metadata, transfer history, token prices, portfolio data, transaction simulation,
-  webhooks, and Solana RPC. Use when querying blockchain data, checking balances, looking up NFTs,
-  fetching prices, or building any Alchemy product integration. Requires $ALCHEMY_API_KEY.
-  If key unavailable, use agentic-gateway skill instead. Covers Base L2 (primary),
-  Arbitrum, Ethereum mainnet, and Solana.
-license: MIT
+description: "Integrates Alchemy blockchain APIs using an API key for EVM JSON-RPC calls, token balances, NFT ownership/metadata, transfer history, token "
+license: "MIT"
 compatibility: Requires network access and $ALCHEMY_API_KEY. Works across Claude.ai, Claude Code, and API."""
 version: "1.0"
 author: "alchemyplatform"
@@ -16,9 +9,10 @@ license: "MIT"
 platforms: [linux, macos, windows]
 metadata:
   hermes:
-    tags: [automatically-portled]
+    tags: [general]
     category: general
     related_skills: []
+    source: seven6-port
 ---
   author: alchemyplatform
   version: "1.0"

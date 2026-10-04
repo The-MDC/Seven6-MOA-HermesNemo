@@ -7,9 +7,10 @@ license: "MIT"
 platforms: [linux, macos, windows]
 metadata:
   hermes:
-    tags: [automatically-portled]
+    tags: [general]
     category: general
     related_skills: []
+    source: seven6-port
 ---
 
 # alexpinel-dot Skill

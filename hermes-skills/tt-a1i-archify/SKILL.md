@@ -10,6 +10,7 @@ metadata:
     tags: [automatically-portled]
     category: general
     related_skills: []
+    source: seven6-port
 ---
 
 # tt-a1i-archify Skill

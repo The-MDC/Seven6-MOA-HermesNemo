@@ -1,10 +1,7 @@
 ---
 name: six-perspectives
-description: "name: six-perspectives
-description: Stress-test an architecture document (or any high-stakes design decision) with six supporting perspectives and six opposing perspectives, then synthesize a verdict. Transposed from Nick's Claude/Cowork six-perspectives method.
-version: 1.0.0
-author: Nick McLeod (transposed to Hermes by Claude, 2026-09-21)
-license: MIT"""
+description: "Stress-test an architecture document (or any high-stakes design decision) with six supporting perspectives and six opposing perspectives, th"
+license: "MIT"
 version: 1.0.0
 author: "unknown"
 license: "MIT"
@@ -14,6 +11,7 @@ metadata:
     tags: [automatically-portled]
     category: general
     related_skills: []
+    source: seven6-port
 ---
   hermes:
     tags: [Council, Architecture-Review, Critical-Thinking, Decision-Support]

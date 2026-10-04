@@ -1,5 +1,5 @@
 ---
-name: knowledge-retrieval
+name: knowledge_retrieval
 description: "Retrieve relevant knowledge from indexed documents and repositories"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

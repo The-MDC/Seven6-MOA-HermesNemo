@@ -1,5 +1,5 @@
 ---
-name: http-api-client
+name: http_api_client
 description: "HTTP API client and request skill for REST services"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

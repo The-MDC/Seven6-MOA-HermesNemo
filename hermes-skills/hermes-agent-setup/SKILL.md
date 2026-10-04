@@ -1,8 +1,7 @@
 ---
 name: hermes-agent-setup
-description: "name: hermes-agent-setup
-description: Configure, diagnose, and extend a NousResearch Hermes Agent CLI install (~/.hermes or %USERPROFILE%\AppData\Local\hermes) — multi-provider model routing, MCP server wiring, delegation limits, and the common failure modes that show up in config.yaml, .env, and gateway_state.json.
-license: MIT"""
+description: "Configure, diagnose, and extend a NousResearch Hermes Agent CLI install (~/.hermes or %USERPROFILE%\AppData\Local\hermes) — multi-provider m"
+license: "MIT"
 version: 1.0.0
 author: "unknown"
 license: "MIT"
@@ -12,6 +11,7 @@ metadata:
     tags: [automatically-portled]
     category: general
     related_skills: []
+    source: seven6-port
 ---
   version: 1.0.0
   source: packaged from a live Hermes Agent CLI support session, 2026-09

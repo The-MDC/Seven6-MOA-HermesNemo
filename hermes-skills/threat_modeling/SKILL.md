@@ -1,5 +1,5 @@
 ---
-name: threat-modeling
+name: threat_modeling
 description: "Model threats and attack vectors for software systems"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

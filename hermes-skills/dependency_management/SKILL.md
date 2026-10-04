@@ -1,5 +1,5 @@
 ---
-name: dependency-management
+name: dependency_management
 description: "Python dependency and package management"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

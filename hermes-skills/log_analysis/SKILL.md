@@ -1,5 +1,5 @@
 ---
-name: log-analysis
+name: log_analysis
 description: "Analyze system logs for security and operational insights"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

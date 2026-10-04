@@ -1,5 +1,5 @@
 ---
-name: kubernetes-audit-skill
+name: kubernetes_audit_skill
 description: "Audit Kubernetes clusters for security and compliance"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

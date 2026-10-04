@@ -1,5 +1,5 @@
 ---
-name: network-proxy-analysis
+name: network_proxy_analysis
 description: "Analyze and intercept network traffic through proxy"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

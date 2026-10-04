@@ -1,5 +1,5 @@
 ---
-name: cloud-orchestration
+name: cloud_orchestration
 description: "Orchestrate AI workloads across cloud platforms"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

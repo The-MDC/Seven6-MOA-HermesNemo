@@ -1,5 +1,5 @@
 ---
-name: cybersecurity-analysis
+name: cybersecurity_analysis
 description: "Analyze security vulnerabilities and threats in code and systems"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

@@ -1,5 +1,5 @@
 ---
-name: model-comparison-skill
+name: model_comparison_skill
 description: "Compare multiple AI models on benchmarks, capabilities, and performance"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

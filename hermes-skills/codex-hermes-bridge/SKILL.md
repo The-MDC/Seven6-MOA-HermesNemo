@@ -1,8 +1,7 @@
 ---
 name: codex-hermes-bridge
-description: "name: codex-hermes-bridge
-description: Wire OpenAI Codex CLI's native subagent system to a Hermes Agent CLI install so each can hand work to the other — Codex delegates research/consensus/specialist work to Hermes via delegate_task, without duplicating work or fighting over concurrency limits.
-license: MIT"""
+description: "Wire OpenAI Codex CLI's native subagent system to a Hermes Agent CLI install so each can hand work to the other — Codex delegates research/c"
+license: "MIT"
 version: 1.0.0
 author: "unknown"
 license: "MIT"
@@ -12,6 +11,7 @@ metadata:
     tags: [automatically-portled]
     category: general
     related_skills: []
+    source: seven6-port
 ---
   version: 1.0.0
   source: packaged from a live Codex + Hermes bridging session, 2026-09

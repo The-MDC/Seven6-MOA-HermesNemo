@@ -1,5 +1,5 @@
 ---
-name: nlp-processing
+name: nlp_processing
 description: "Natural language processing and text analysis"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

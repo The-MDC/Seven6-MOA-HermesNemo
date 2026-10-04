@@ -1,14 +1,7 @@
 ---
 name: agentic-gateway
-description: "name: agentic-gateway
-description: >
-  Lets agents access Alchemy APIs for blockchain tasks without an API key, using x402
-  protocol (SIWE/SIWS + USDC payments) or MPP protocol (SIWE + Tempo/Stripe payments).
-  Supports EVM (Base, Ethereum, Arbitrum) and SVM (Solana). Use for ANY blockchain query
-  when $ALCHEMY_API_KEY is not set — token balances, NFTs, prices, smart contracts, DeFi,
-  wallets, transactions, gas, or any Web3 task. Also triggers on "SIWE", "SIWS", "x402",
-  "MPP", "mppx", "agentic gateway", "wallet-based auth", or "paywall".
-license: MIT
+description: "Lets agents access Alchemy APIs for blockchain tasks without an API key, using x402 protocol (SIWE/SIWS + USDC payments) or MPP protocol (SI"
+license: "MIT"
 compatibility: Requires Node.js (npx) and a wallet funded with USDC. Works across Claude.ai, Claude Code, and API."""
 version: "2.0"
 author: "alchemyplatform"
@@ -19,6 +12,7 @@ metadata:
     tags: [automatically-portled]
     category: general
     related_skills: []
+    source: seven6-port
 ---
   author: alchemyplatform
   version: "2.0"

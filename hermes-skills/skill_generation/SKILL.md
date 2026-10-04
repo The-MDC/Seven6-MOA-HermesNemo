@@ -1,5 +1,5 @@
 ---
-name: skill-generation
+name: skill_generation
 description: "Generate and create new AI agent skills"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

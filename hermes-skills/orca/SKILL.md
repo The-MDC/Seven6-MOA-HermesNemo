@@ -3,11 +3,14 @@ description: ORCA language model skill for Seven6-Hermes-MOA
 category: general
 tags: [orca, stably-ai, 13b, dense-transformer]
 
+version: 1.0.0
+platforms: [linux, macos, windows]
 metadata:
   hermes:
-    tags: [orca, stably-ai, 13b, dense-transformer]
+    tags: [general]
     category: general
     related_skills: []
+    source: seven6-port
 ---
 
 ## ORCA (stably.ai) — 13B Dense Transformer Skill

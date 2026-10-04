@@ -117,7 +117,7 @@ moa:
   - name: Nemotron-Lightning-A3B
     quant: Q4_K_M
     role: base_generator
-    description: 30B Mixture-of-Experts (3B active) with hybrid Mamba-2/MoE architecture, optimized for coding, mathematical reasoning, and scientific analysis. NVIDIA Nemotron 3.5 Lightning, NIM-deployed. Succeeds Darwin-35B-A3B-Mythos (Qwen3.6-based) with improved agentic capabilities.
+    description: 30B Mixture-of-Experts (3B active) with hybrid Mamba-2/MoE architecture, optimized for coding, mathematical reasoning, and scientific analysis. NVIDIA Nemotron 3.5 Lightning, NIM-deployed. NIM-deployed base_generator for the Seven6-Hermes-MOA tier1 panel.
   - name: Nemotron-3.5-Base-8B-Instruct
     quant: Q4_K_M
     role: instruct

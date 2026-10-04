@@ -10,6 +10,7 @@ metadata:
     tags: [automatically-portled]
     category: general
     related_skills: []
+    source: seven6-port
 ---
 
 # uncensored-13b-model Skill
@@ -35,7 +36,7 @@ An uncensored 13B parameter language model serving as the base generator in the 
 This skill provides access to the uncensored 13B model's capabilities that can be used to:
 - Generate high-quality text outputs as the base layer in MOA1
 - Serve as the generator that is enhanced by the powerful MOE (Darwin-180B-RSI)
-- Work in tandem with the secondary generator (Darwin-35B-A3B-Mythos)
+- Work in tandem with the secondary generator (NEMOTRON-35-LIGHTNING-A3B)
 - Have its outputs validated by the guard model (Nemotron 3.5 Content Safety)
 - Handle general purpose text generation tasks efficiently
 

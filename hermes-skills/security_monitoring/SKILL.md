@@ -1,5 +1,5 @@
 ---
-name: security-monitoring
+name: security_monitoring
 description: "Security monitoring and intrusion detection skill"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

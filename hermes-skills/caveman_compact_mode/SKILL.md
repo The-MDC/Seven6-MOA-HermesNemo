@@ -1,5 +1,5 @@
 ---
-name: caveman-compact-mode
+name: caveman_compact_mode
 description: "Ultra-compact response mode for AI assistants, saves tokens by providing direct technical answers"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

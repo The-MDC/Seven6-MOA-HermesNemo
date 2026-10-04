@@ -1,5 +1,5 @@
 ---
-name: kubernetes-security
+name: kubernetes_security
 description: "Kubernetes security assessment and hardening"
 version: 1.0.0
 author: "Seven6-Hermes-MOA conversion"

@@ -1,0 +1,1498 @@
+{
+  "created": "2026-10-03T23:55:57.299004",
+  "total_skills": 122,
+  "skills": [
+    {
+      "id": "academic-code-review",
+      "name": "academic-code-review",
+      "tags": [
+        "code-review",
+        "academic",
+        "research"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "agentic-gateway",
+      "name": "agentic-gateway",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "ai-gateway",
+      "name": "ai-gateway",
+      "tags": [
+        "gateway",
+        "routing",
+        "providers"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "ai_evaluation_skill",
+      "name": "ai_evaluation_skill",
+      "tags": [
+        ""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "alchemy-api",
+      "name": "alchemy-api",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "alexpinel-dot",
+      "name": "alexpinel-dot",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "algorithmic-art",
+      "name": "algorithmic-art",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "alibaba-page-agent",
+      "name": "alibaba-page-agent",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "api-design",
+      "name": "api-design",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "architecture_stress_test",
+      "name": "architecture_stress_test",
+      "tags": [
+        "\"stress-test\"",
+        "\"architecture\"",
+        "\"six-perspectives\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "awesome-design-md-integration",
+      "name": "awesome-design-md-integration",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "awesome-selfhosted-services",
+      "name": "awesome-selfhosted-services",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "backend-patterns",
+      "name": "backend-patterns",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "book-of-secret-knowledge",
+      "name": "book-of-secret-knowledge",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "brand-guidelines",
+      "name": "brand-guidelines",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "canvas-design",
+      "name": "canvas-design",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "caveman_compact_mode",
+      "name": "caveman_compact_mode",
+      "tags": [
+        "\"compact\"",
+        "\"ultra-compact\"",
+        "\"response-mode\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "ciso-assistant",
+      "name": "ciso-assistant",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "clawpatch",
+      "name": "clawpatch",
+      "tags": [
+        "code-review",
+        "react",
+        "typescript"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "cloud_orchestration",
+      "name": "cloud_orchestration",
+      "tags": [
+        "\"cloud-orchestration\"",
+        "\"workload-orchestration\"",
+        "\"multi-cloud\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "cluster_management",
+      "name": "cluster_management",
+      "tags": [
+        "\"kubernetes\"",
+        "\"cluster-management\"",
+        "\"monitoring\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "code-review",
+      "name": "code-review",
+      "tags": [
+        "code-review",
+        "tree-sitter",
+        "graph"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "codecrafters-build-your-own",
+      "name": "codecrafters-build-your-own",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "codex-hermes-bridge",
+      "name": "codex-hermes-bridge",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "codex-plugin",
+      "name": "codex-plugin",
+      "tags": [
+        "codex",
+        "integration",
+        "automation"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "config-drift",
+      "name": "config-drift",
+      "tags": [
+        "config",
+        "drift",
+        "audit"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "crowdsecurity-crowdsec",
+      "name": "crowdsecurity-crowdsec",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "cybersecurity_analysis",
+      "name": "cybersecurity_analysis",
+      "tags": [
+        "\"cybersecurity\"",
+        "\"vulnerability-analysis\"",
+        "\"threat-detection\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "darwin-180b-rsi",
+      "name": "darwin-180b-rsi",
+      "tags": [
+        "general",
+        "instruct",
+        "long-chain-of-thought",
+        "six-perspectives"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "data_visualization",
+      "name": "data_visualization",
+      "tags": [
+        "\"data-visualization\"",
+        "\"charts\"",
+        "\"interactive-plots\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "deep-research",
+      "name": "deep-research",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "dependency_management",
+      "name": "dependency_management",
+      "tags": [
+        "\"python\"",
+        "\"dependency-management\"",
+        "\"poetry\"",
+        "\"pip\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "doc-coauthoring",
+      "name": "doc-coauthoring",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "docx",
+      "name": "docx",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "dopplerhq-awesome-interview-questions",
+      "name": "dopplerhq-awesome-interview-questions",
+      "tags": [
+        "general"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "ecc-agent-harness",
+      "name": "ecc-agent-harness",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "edoardottt-awesome-hacker-search-engines",
+      "name": "edoardottt-awesome-hacker-search-engines",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "enhanced-mem9",
+      "name": "enhanced-mem9",
+      "tags": [
+        "memory",
+        "caching",
+        "persistence"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "fffaraz-awesome-cpp",
+      "name": "fffaraz-awesome-cpp",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "file-reading",
+      "name": "file-reading",
+      "tags": [
+        "file-reading",
+        "media"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "FlowiseAI-Flowise",
+      "name": "FlowiseAI-Flowise",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "frontend-design",
+      "name": "frontend-design",
+      "tags": [
+        "frontend-design",
+        "software-development"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "goose-agent",
+      "name": "goose-agent",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "headroom-labs-ai-headroom",
+      "name": "headroom-labs-ai-headroom",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "hermes-agent-setup",
+      "name": "hermes-agent-setup",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "hermes-orchestration",
+      "name": "hermes-orchestration",
+      "tags": [
+        "hermes-orchestration",
+        "operations"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "hermes-team-builder",
+      "name": "hermes-team-builder",
+      "tags": [
+        "team",
+        "agents",
+        "orchestration"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "hogeheer499-strix-halo-guide",
+      "name": "hogeheer499-strix-halo-guide",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "hoppscotch",
+      "name": "hoppscotch",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "http_api_client",
+      "name": "http_api_client",
+      "tags": [
+        "\"http-client\"",
+        "\"rest-api\"",
+        "\"http-requests\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "internal-comms",
+      "name": "internal-comms",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "investor-materials",
+      "name": "investor-materials",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "investor-outreach",
+      "name": "investor-outreach",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "java-design-patterns-learning",
+      "name": "java-design-patterns-learning",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "jevify-q6k-gguf-multimodal-coding",
+      "name": "jevify-q6k-gguf-multimodal-coding",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "jevify-q6k-gguf-second-support",
+      "name": "jevify-q6k-gguf-second-support",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "knowledge_retrieval",
+      "name": "knowledge_retrieval",
+      "tags": [
+        "\"knowledge-retrieval\"",
+        "\"document-retrieval\"",
+        "\"repository-search\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "kubernetes_audit_skill",
+      "name": "kubernetes_audit_skill",
+      "tags": [
+        "\"kubernetes\"",
+        "\"audit\"",
+        "\"compliance\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "kubernetes_security",
+      "name": "kubernetes_security",
+      "tags": [
+        "\"kubernetes\"",
+        "\"security\"",
+        "\"cluster-hardening\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "kyuz0-amd-strix-halo-toolboxes",
+      "name": "kyuz0-amd-strix-halo-toolboxes",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "learn",
+      "name": "learn",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "local-desktop",
+      "name": "local-desktop",
+      "tags": [
+        "local-desktop",
+        "operations"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "log_analysis",
+      "name": "log_analysis",
+      "tags": [
+        "\"log-analysis\"",
+        "\"operational-insights\"",
+        "\"security-analysis\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "mad-gambit-ai-agents",
+      "name": "mad-gambit-ai-agents",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "mad-gambit-context",
+      "name": "mad-gambit-context",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "market-research",
+      "name": "market-research",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "mattpocock-typescript",
+      "name": "mattpocock-typescript",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "mcp-builder",
+      "name": "mcp-builder",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "mcp-server-patterns",
+      "name": "mad-gambit-mcp",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "mcp-zendriver",
+      "name": "MCP-Zendriver Integration",
+      "tags": [
+        "'mcp-zendriver'",
+        "'mcp-integration'",
+        "'zendriver-mcp'"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "mdolab-dafoam",
+      "name": "mdolab-dafoam",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "memory-pipeline",
+      "name": "memory-pipeline",
+      "tags": [
+        "memory",
+        "persistence",
+        "sessions"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "meta-skill",
+      "name": "meta-skill",
+      "tags": [
+        "meta",
+        "skill-learning",
+        "observation"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "model_comparison_skill",
+      "name": "model_comparison_skill",
+      "tags": [
+        "\"model-comparison\"",
+        "\"benchmarks\"",
+        "\"performance-evaluation\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "multi-agent-coordination",
+      "name": "Multi-Agent Coordination",
+      "tags": [
+        "'multi-agent-coordination'",
+        "'agentic-gateway'",
+        "'multi-agent-systems'"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "nemotron-lightning-a3b",
+      "name": "nemotron-lightning-a3b",
+      "tags": [
+        "moa",
+        "base-generator",
+        "coding",
+        "math-reasoning",
+        "instruct",
+        "long-chain-of-thought",
+        "nim-deployed"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "nemotron-safety-content-moderation",
+      "name": "nemotron-safety-content-moderation",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "network_proxy_analysis",
+      "name": "network_proxy_analysis",
+      "tags": [
+        "\"network-proxy\"",
+        "\"traffic-analysis\"",
+        "\"mitm\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "nextlevelbuilder-goclaw",
+      "name": "nextlevelbuilder-goclaw",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "nextlevelbuilder-ui-ux-pro-max-skill",
+      "name": "nextlevelbuilder-ui-ux-pro-max-skill",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "nlp_processing",
+      "name": "nlp_processing",
+      "tags": [
+        "\"nlp\"",
+        "\"text-analysis\"",
+        "\"language-processing\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "nvidia-agent-doctor",
+      "name": "nvidia-agent-doctor",
+      "tags": [
+        "nvidia",
+        "diagnostics",
+        "security"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "nvidia-enhanced",
+      "name": "nvidia-enhanced",
+      "tags": [
+        "nvidia",
+        "gpu",
+        "optimization"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "orca",
+      "name": "orca",
+      "tags": [
+        "orca",
+        "stably-ai",
+        "13b",
+        "dense-transformer"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "panniantong-agent-reach",
+      "name": "panniantong-agent-reach",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "pdf",
+      "name": "pdf",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "pdf-reading",
+      "name": "pdf-reading",
+      "tags": [
+        "pdf-reading",
+        "media"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "podman",
+      "name": "podman",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "pptx",
+      "name": "pptx",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "prompt-optimization",
+      "name": "Prompt Optimization",
+      "tags": [
+        "'prompt-optimization'",
+        "'auto-prompt-optimization'",
+        "'trajectory-aggregation'"
+      ],
+      "performance": 0.24,
+      "executions": 1,
+      "successes": 0,
+      "failures": 1
+    },
+    {
+      "id": "puppeteer",
+      "name": "puppeteer",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "research-pipeline",
+      "name": "research-pipeline",
+      "tags": [
+        "research",
+        "pipeline",
+        "academic"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "review-vision-quantum-model",
+      "name": "review-vision-quantum-model",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "rl-optimization",
+      "name": "RL Optimization",
+      "tags": [
+        "'rl-optimization'",
+        "'reinforcement-learning'",
+        "'agent-training'",
+        "'prompt-optimization'"
+      ],
+      "performance": 0.985,
+      "executions": 1,
+      "successes": 1,
+      "failures": 0
+    },
+    {
+      "id": "rshipp-awesome-malware-analysis",
+      "name": "rshipp-awesome-malware-analysis",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "rtk-ai-rtk",
+      "name": "rtk-ai-rtk",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "schema-drift",
+      "name": "Schema Drift Detection",
+      "tags": [
+        "'schema-drift'",
+        "'config-drift'",
+        "'infrastructure-drift'"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "security-audit",
+      "name": "security-audit",
+      "tags": [
+        "security-audit",
+        "security"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "security-review",
+      "name": "security-review",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "security_monitoring",
+      "name": "security_monitoring",
+      "tags": [
+        "\"security-monitoring\"",
+        "\"intrusion-detection\"",
+        "\"real-time-analysis\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "semantic_search_skill",
+      "name": "semantic_search_skill",
+      "tags": [
+        "\"semantic-search\"",
+        "\"document-search\"",
+        "\"code-search\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "shanraisshan-claude-code-best-practice",
+      "name": "shanraisshan-claude-code-best-practice",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "six-perspectives",
+      "name": "six-perspectives",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "skill-creator",
+      "name": "skill-creator",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "skill_generation",
+      "name": "skill_generation",
+      "tags": [
+        "\"skill-generation\"",
+        "\"auto-generation\"",
+        "\"skill-creation\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "solidity-foundry",
+      "name": "solidity-foundry",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "spiderfoot-spiderfoot",
+      "name": "spiderfoot-spiderfoot",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "sql-rl",
+      "name": "SQL Reinforcement Learning",
+      "tags": [
+        "'sql-rl'",
+        "'rl-training'",
+        "'sql-coding'"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "team-management",
+      "name": "team-management",
+      "tags": [
+        "team",
+        "management",
+        "agents"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "threat_modeling",
+      "name": "threat_modeling",
+      "tags": [
+        "\"threat-modeling\"",
+        "\"attack-vectors\"",
+        "\"security-assessment\""
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "token-optimization",
+      "name": "Token Optimization",
+      "tags": [
+        "'token-optimization'",
+        "'ret-tokenization-drift'",
+        "'agent-lightning'"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "trajectory-aggregation",
+      "name": "Trajectory Aggregation",
+      "tags": [
+        "'trajectory-aggregation'",
+        "'rl-training'",
+        "'agent-lightning'"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "trycua-cua",
+      "name": "trycua-cua",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "tt-a1i-archify",
+      "name": "tt-a1i-archify",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "uncensored-13b-model",
+      "name": "uncensored-13b-model",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "usestrix-strix",
+      "name": "usestrix-strix",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "vercel-for-github",
+      "name": "vercel-for-github",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "vercel-git-deploys",
+      "name": "vercel-git-deploys",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "verification-loop",
+      "name": "verification-loop",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "xlsx",
+      "name": "xlsx",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "Zackriya-Solutions-meetily",
+      "name": "Zackriya-Solutions-meetily",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "id": "zeroz-lab-cc-design",
+      "name": "zeroz-lab-cc-design",
+      "tags": [
+        "automatically-portled"
+      ],
+      "performance": 0.5,
+      "executions": 0,
+      "successes": 0,
+      "failures": 0
+    }
+  ],
+  "global_metrics": {
+    "total_executions": 2,
+    "average_success_rate": 0.5,
+    "updated": "2026-10-03T23:55:57.468781"
+  },
+  "noesis-qwen3-tts": {
+    "skill_id": "noesis-qwen3-tts",
+    "skill_name": "NOESIS-Qwen3-TTS",
+    "category": "voice-agent",
+    "model_class": "llama.cpp",
+    "status": "initialized",
+    "success_rate": 0.0,
+    "avg_confidence": 0.0,
+    "total_calls": 0,
+    "avg_execution_time": 0.0,
+    "last_used": null,
+    "quant_levels_tested": [
+      "Q2_K",
+      "Q3_K_L",
+      "Q4_K_M",
+      "Q5_K_M",
+      "Q6_K",
+      "Q8_0"
+    ],
+    "recommended_quant": "Q5_K_M",
+    "domains_supported": [
+      "voice-agent",
+      "tts",
+      "asr",
+      "llm"
+    ],
+    "timbres_supported": 49,
+    "languages_supported": 10,
+    "dialects_supported": 9,
+    "metadata": {
+      "source": "seven6-port",
+      "hermes_block": true,
+      "tags": [
+        "tts",
+        "asr",
+        "llm",
+        "voice",
+        "conversational",
+        "qwen3",
+        "multimodal"
+      ]
+    }
+  }
+}

@@ -1,0 +1,503 @@
+{
+  "domains": {
+    "research": [
+      "prompt-000",
+      "prompt-001",
+      "prompt-002",
+      "prompt-003",
+      "prompt-004",
+      "prompt-005",
+      "prompt-006"
+    ],
+    "analysis": [
+      "prompt-007",
+      "prompt-008",
+      "prompt-009",
+      "prompt-010",
+      "prompt-011",
+      "prompt-012",
+      "prompt-013"
+    ],
+    "generate": [
+      "prompt-014",
+      "prompt-015",
+      "prompt-016",
+      "prompt-017",
+      "prompt-018",
+      "prompt-019",
+      "prompt-020"
+    ],
+    "code": [
+      "prompt-021",
+      "prompt-022",
+      "prompt-023",
+      "prompt-024",
+      "prompt-025",
+      "prompt-026",
+      "prompt-027"
+    ],
+    "code-review": [
+      "prompt-028",
+      "prompt-029",
+      "prompt-030",
+      "prompt-031",
+      "prompt-032"
+    ],
+    "qa": [
+      "prompt-033",
+      "prompt-034",
+      "prompt-035",
+      "prompt-036",
+      "prompt-037"
+    ],
+    "sec-review": [
+      "prompt-038",
+      "prompt-039",
+      "prompt-040",
+      "prompt-041",
+      "prompt-042"
+    ],
+    "audit": [
+      "prompt-043",
+      "prompt-044",
+      "prompt-045",
+      "prompt-046",
+      "prompt-047"
+    ]
+  },
+  "prompts": [
+    {
+      "id": "prompt-000",
+      "text": "Deep research on quantum computing architectures",
+      "domain": "research",
+      "expected_domain": "research",
+      "created": "2026-10-03T23:57:03.516018+00:00",
+      "complexity": "high",
+      "category": "routine"
+    },
+    {
+      "id": "prompt-001",
+      "text": "Comprehensive analysis of transformer models",
+      "domain": "research",
+      "expected_domain": "research",
+      "created": "2026-10-03T23:57:03.516151+00:00",
+      "complexity": "medium",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-002",
+      "text": "Critical evaluation of LLM safety techniques",
+      "domain": "research",
+      "expected_domain": "research",
+      "created": "2026-10-03T23:57:03.516179+00:00",
+      "complexity": "low",
+      "category": "routine"
+    },
+    {
+      "id": "prompt-003",
+      "text": "Polymath investigation of agent architectures",
+      "domain": "research",
+      "expected_domain": "research",
+      "created": "2026-10-03T23:57:03.516196+00:00",
+      "complexity": "medium",
+      "category": "routine"
+    },
+    {
+      "id": "prompt-004",
+      "text": "Deep dive into Mixture-of-Experts models",
+      "domain": "research",
+      "expected_domain": "research",
+      "created": "2026-10-03T23:57:03.516209+00:00",
+      "complexity": "medium",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-005",
+      "text": "Critical thinking assessment of AI alignment",
+      "domain": "research",
+      "expected_domain": "research",
+      "created": "2026-10-03T23:57:03.516223+00:00",
+      "complexity": "low",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-006",
+      "text": "Quantitative analysis of model performance benchmarks",
+      "domain": "research",
+      "expected_domain": "research",
+      "created": "2026-10-03T23:57:03.516238+00:00",
+      "complexity": "medium",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-007",
+      "text": "Analyze the tradeoffs between RL and SFT for agent training",
+      "domain": "analysis",
+      "expected_domain": "analysis",
+      "created": "2026-10-03T23:57:03.516253+00:00",
+      "complexity": "high",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-008",
+      "text": "Deep analysis of prompt injection vulnerabilities",
+      "domain": "analysis",
+      "expected_domain": "analysis",
+      "created": "2026-10-03T23:57:03.516270+00:00",
+      "complexity": "low",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-009",
+      "text": "Systematic comparison of agent frameworks",
+      "domain": "analysis",
+      "expected_domain": "analysis",
+      "created": "2026-10-03T23:57:03.516352+00:00",
+      "complexity": "medium",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-010",
+      "text": "Component-wise analysis of MoE architectures",
+      "domain": "analysis",
+      "expected_domain": "analysis",
+      "created": "2026-10-03T23:57:03.516381+00:00",
+      "complexity": "medium",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-011",
+      "text": "Critical analysis of token optimization techniques",
+      "domain": "analysis",
+      "expected_domain": "analysis",
+      "created": "2026-10-03T23:57:03.516410+00:00",
+      "complexity": "medium",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-012",
+      "text": "Domain adaptation analysis for cross-task transfer",
+      "domain": "analysis",
+      "expected_domain": "analysis",
+      "created": "2026-10-03T23:57:03.516428+00:00",
+      "complexity": "medium",
+      "category": "routine"
+    },
+    {
+      "id": "prompt-013",
+      "text": "Multi-perspective analysis using six-perspectives framework",
+      "domain": "analysis",
+      "expected_domain": "analysis",
+      "created": "2026-10-03T23:57:03.516444+00:00",
+      "complexity": "medium",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-014",
+      "text": "Generate a comprehensive report on AI agent security",
+      "domain": "generate",
+      "expected_domain": "generate",
+      "created": "2026-10-03T23:57:03.516468+00:00",
+      "complexity": "medium",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-015",
+      "text": "Create a multi-step workflow for code review",
+      "domain": "generate",
+      "expected_domain": "generate",
+      "created": "2026-10-03T23:57:03.516484+00:00",
+      "complexity": "low",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-016",
+      "text": "Synthesize a comparison of NIM vs HF Inference",
+      "domain": "generate",
+      "expected_domain": "generate",
+      "created": "2026-10-03T23:57:03.516497+00:00",
+      "complexity": "high",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-017",
+      "text": "Output a structured skills taxonomy for MoE",
+      "domain": "generate",
+      "expected_domain": "generate",
+      "created": "2026-10-03T23:57:03.516512+00:00",
+      "complexity": "medium",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-018",
+      "text": "Produce a domain classification matrix",
+      "domain": "generate",
+      "expected_domain": "generate",
+      "created": "2026-10-03T23:57:03.516527+00:00",
+      "complexity": "high",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-019",
+      "text": "Generate evaluation criteria for AI safety",
+      "domain": "generate",
+      "expected_domain": "generate",
+      "created": "2026-10-03T23:57:03.516540+00:00",
+      "complexity": "low",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-020",
+      "text": "Create a prompt optimization pipeline output",
+      "domain": "generate",
+      "expected_domain": "generate",
+      "created": "2026-10-03T23:57:03.516554+00:00",
+      "complexity": "high",
+      "category": "routine"
+    },
+    {
+      "id": "prompt-021",
+      "text": "Implement a Python module for agent coordination",
+      "domain": "code",
+      "expected_domain": "code",
+      "created": "2026-10-03T23:57:03.516573+00:00",
+      "complexity": "high",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-022",
+      "text": "Write a Python class for RL-based prompt optimization",
+      "domain": "code",
+      "expected_domain": "code",
+      "created": "2026-10-03T23:57:03.516590+00:00",
+      "complexity": "low",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-023",
+      "text": "Develop a schema drift detection script",
+      "domain": "code",
+      "expected_domain": "code",
+      "created": "2026-10-03T23:57:03.516603+00:00",
+      "complexity": "low",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-024",
+      "text": "Code a multi-agent coordination protocol",
+      "domain": "code",
+      "expected_domain": "code",
+      "created": "2026-10-03T23:57:03.516641+00:00",
+      "complexity": "high",
+      "category": "routine"
+    },
+    {
+      "id": "prompt-025",
+      "text": "Implement SQL query generation with RL",
+      "domain": "code",
+      "expected_domain": "code",
+      "created": "2026-10-03T23:57:03.516665+00:00",
+      "complexity": "high",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-026",
+      "text": "Write a token optimization utility",
+      "domain": "code",
+      "expected_domain": "code",
+      "created": "2026-10-03T23:57:03.516681+00:00",
+      "complexity": "low",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-027",
+      "text": "Develop a Zendriver-MCP integration script",
+      "domain": "code",
+      "expected_domain": "code",
+      "created": "2026-10-03T23:57:03.516695+00:00",
+      "complexity": "low",
+      "category": "routine"
+    },
+    {
+      "id": "prompt-028",
+      "text": "Review code for security vulnerabilities",
+      "domain": "code-review",
+      "expected_domain": "code-review",
+      "created": "2026-10-03T23:57:03.516713+00:00",
+      "complexity": "low",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-029",
+      "text": "Code review of RL optimization implementation",
+      "domain": "code-review",
+      "expected_domain": "code-review",
+      "created": "2026-10-03T23:57:03.518262+00:00",
+      "complexity": "medium",
+      "category": "routine"
+    },
+    {
+      "id": "prompt-030",
+      "text": "Peer review of prompt optimization pipeline",
+      "domain": "code-review",
+      "expected_domain": "code-review",
+      "created": "2026-10-03T23:57:03.518323+00:00",
+      "complexity": "high",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-031",
+      "text": "Security review of schema drift detector",
+      "domain": "code-review",
+      "expected_domain": "code-review",
+      "created": "2026-10-03T23:57:03.518338+00:00",
+      "complexity": "medium",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-032",
+      "text": "Audit code for token optimization patterns",
+      "domain": "code-review",
+      "expected_domain": "code-review",
+      "created": "2026-10-03T23:57:03.518350+00:00",
+      "complexity": "medium",
+      "category": "routine"
+    },
+    {
+      "id": "prompt-033",
+      "text": "Quality assurance test for agent coordination",
+      "domain": "qa",
+      "expected_domain": "qa",
+      "created": "2026-10-03T23:57:03.518365+00:00",
+      "complexity": "high",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-034",
+      "text": "Test RL optimization performance",
+      "domain": "qa",
+      "expected_domain": "qa",
+      "created": "2026-10-03T23:57:03.518391+00:00",
+      "complexity": "low",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-035",
+      "text": "Validate prompt optimization results",
+      "domain": "qa",
+      "expected_domain": "qa",
+      "created": "2026-10-03T23:57:03.518406+00:00",
+      "complexity": "high",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-036",
+      "text": "QA test of schema drift detection",
+      "domain": "qa",
+      "expected_domain": "qa",
+      "created": "2026-10-03T23:57:03.518420+00:00",
+      "complexity": "high",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-037",
+      "text": "Test token optimization output correctness",
+      "domain": "qa",
+      "expected_domain": "qa",
+      "created": "2026-10-03T23:57:03.518433+00:00",
+      "complexity": "medium",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-038",
+      "text": "Security review of agent coordination code",
+      "domain": "sec-review",
+      "expected_domain": "sec-review",
+      "created": "2026-10-03T23:57:03.518447+00:00",
+      "complexity": "medium",
+      "category": "routine"
+    },
+    {
+      "id": "prompt-039",
+      "text": "Security review of RL implementation",
+      "domain": "sec-review",
+      "expected_domain": "sec-review",
+      "created": "2026-10-03T23:57:03.518462+00:00",
+      "complexity": "high",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-040",
+      "text": "Security review of prompt optimization",
+      "domain": "sec-review",
+      "expected_domain": "sec-review",
+      "created": "2026-10-03T23:57:03.518476+00:00",
+      "complexity": "low",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-041",
+      "text": "Security review of schema drift detector",
+      "domain": "sec-review",
+      "expected_domain": "sec-review",
+      "created": "2026-10-03T23:57:03.518490+00:00",
+      "complexity": "medium",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-042",
+      "text": "Security review of token optimization module",
+      "domain": "sec-review",
+      "expected_domain": "sec-review",
+      "created": "2026-10-03T23:57:03.518502+00:00",
+      "complexity": "low",
+      "category": "critical"
+    },
+    {
+      "id": "prompt-043",
+      "text": "Comprehensive audit of agent workflow",
+      "domain": "audit",
+      "expected_domain": "audit",
+      "created": "2026-10-03T23:57:03.518517+00:00",
+      "complexity": "medium",
+      "category": "routine"
+    },
+    {
+      "id": "prompt-044",
+      "text": "Audit RL optimization pipeline",
+      "domain": "audit",
+      "expected_domain": "audit",
+      "created": "2026-10-03T23:57:03.518532+00:00",
+      "complexity": "medium",
+      "category": "routine"
+    },
+    {
+      "id": "prompt-045",
+      "text": "Audit prompt optimization framework",
+      "domain": "audit",
+      "expected_domain": "audit",
+      "created": "2026-10-03T23:57:03.518545+00:00",
+      "complexity": "high",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-046",
+      "text": "Audit schema drift detection system",
+      "domain": "audit",
+      "expected_domain": "audit",
+      "created": "2026-10-03T23:57:03.518563+00:00",
+      "complexity": "high",
+      "category": "complex"
+    },
+    {
+      "id": "prompt-047",
+      "text": "Audit token optimization integration",
+      "domain": "audit",
+      "expected_domain": "audit",
+      "created": "2026-10-03T23:57:03.518576+00:00",
+      "complexity": "high",
+      "category": "critical"
+    }
+  ],
+  "total_prompts": 48
+}
