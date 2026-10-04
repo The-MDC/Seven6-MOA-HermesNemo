@@ -1,6 +1,6 @@
 # Seven6-Hermes-MOA
 
-Production-ready Hermes Agent orchestration layer with advanced capabilities.
+Production-ready Hermes Agent orchestration layer with 178 standardized skills.
 
 ## Overview
 
