@@ -4,11 +4,11 @@ providers:
     api: https://router.huggingface.co/v1
     key_env: HF_TOKEN
     transport: chat_completions
-    default_model: deepseek-ai/DeepSeek-V4-Pro
+    default_model: nvidia/llama-3.3-nemotron-super-49b-v1.5
     models:
-    - deepseek-ai/DeepSeek-V4-Pro
+    - nvidia/llama-3.3-nemotron-super-49b-v1.5
     discover_models: false
-    context_length: 262144
+    context_length: 131072
   nvidia-nim:
     name: NVIDIA NIM (build.nvidia.com)
     api: https://integrate.api.nvidia.com/v1
@@ -24,11 +24,11 @@ providers:
     api: https://openrouter.ai/api/v1
     key_env: OPENROUTER_API_KEY
     transport: chat_completions
-    default_model: deepseek/deepseek-v4.1-flash
+    default_model: nvidia/llama-3.3-nemotron-super-49b-v1.5
     models:
-    - deepseek/deepseek-v4.1-flash
+    - nvidia/llama-3.3-nemotron-super-49b-v1.5
     discover_models: false
-    context_length: 262144
+    context_length: 131072
   local:
     name: Ollama (this machine)
     api: http://127.0.0.1:11434/v1
@@ -71,8 +71,8 @@ orc_a:
     discover_models: false
     context_length: 200000
 model:
-  provider: custom:hf-router
-  default: deepseek-ai/DeepSeek-V4-Pro
+  provider: custom:nvidia-nim
+  default: nvidia/llama-3.3-nemotron-super-49b-v1.5
   temperature: 1.0
   top_p: 1.0
 fallback_providers:
@@ -80,10 +80,6 @@ fallback_providers:
   model: nvidia/llama-3.3-nemotron-super-49b-v1.5
   base_url: https://integrate.api.nvidia.com/v1
   key_env: NVIDIA_API_KEY
-- provider: custom
-  model: deepseek/deepseek-v4.1-flash
-  base_url: https://openrouter.ai/api/v1
-  key_env: OPENROUTER_API_KEY
 - provider: custom
   model:
   - model
@@ -97,7 +93,7 @@ delegation:
 moa:
   reference_models:
   - provider: custom:hf-router
-    model: deepseek-ai/DeepSeek-V4-Pro
+    model: nvidia/llama-3.3-nemotron-super-49b-v1.5
     enabled: true
   aggregator:
     provider: custom:nvidia-nim
@@ -106,7 +102,7 @@ moa:
     default:
       reference_models:
       - provider: custom:hf-router
-        model: deepseek-ai/DeepSeek-V4-Pro
+        model: nvidia/llama-3.3-nemotron-super-49b-v1.5
         enabled: true
   tier1:
   - name: Darwin-180B-RSI
@@ -155,7 +151,6 @@ excluded_providers:
 - google-vertex
 - vertex-ai
 - mistral
-- deepseek
 - groq
 - cerebras
 - xai
@@ -236,10 +231,10 @@ mcp_servers:
 auxiliary:
   compression:
     provider: custom:or-fallback
-    model: deepseek/deepseek-v4.1-flash
+    model: nvidia/llama-3.3-nemotron-super-49b-v1.5
   web_extract:
     provider: custom:or-fallback
-    model: deepseek/deepseek-v4.1-flash
+    model: nvidia/llama-3.3-nemotron-super-49b-v1.5
   vision:
     provider: custom:local-vl
     model: nemotron-nano-12b-v2-vl
@@ -272,7 +267,6 @@ compression:
   enabled: true
   threshold: 0.5
   model_thresholds:
-    DeepSeek-V4-Pro: 0.7
   target_ratio: 0.2
   tail_mode: lean
   protect_last_n: 20
