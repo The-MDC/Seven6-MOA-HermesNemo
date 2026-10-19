@@ -601,7 +601,7 @@ jobs:
             grep -q 'Seven6-MOA \[Nemo-Hermes\]' "$f" || { echo "MISSING display name in $f"; exit 1; }
           done
           hits=$(git ls-files -z | grep -zv '^\.github/workflows/checks\.yml$' \
-            | xargs -0 grep -nIE 'Seven6-Hermes-MOA|Hermes-MOA-Build|Seven6MOA|hermes-codex-build|Hermes-MOA-Nemotron|hermes-moa-build' || true)
+            | xargs -0 grep -nIE 'Seven6-Hermes-MOA|Hermes-MOA-Build|Hermes-MOA-B|Seven6MOA|hermes-codex-build|Hermes-MOA-Nemotron|hermes-moa-build|moa-b/' || true)
           if [ -n "$hits" ]; then echo "$hits"; echo "legacy name(s) found"; exit 1; fi
           # Gateways and models that were removed from this build. `deepseek` itself stays
           # legitimate: it is an excluded provider key in config.yaml, not a route.

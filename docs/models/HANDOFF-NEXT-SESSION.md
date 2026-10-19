@@ -311,7 +311,7 @@ moved:
 |---|---|
 | Earlier ordered handoffs (two) | The "why some steps can never be delegated" table → `HERMES-SELF-SETUP.md`; Codex-shim and `external_dirs` items → this file; MemoryCore/WhatsApp status and the MoA-as-spend-multiplier note → "Needs a human" §3 |
 | Four unwired hook forwarders | Nothing to keep; `.claude/hooks/README.md` updated |
-| A local-swarm design doc | Four NVIDIA candidates, one line each, under "Candidates, unverified" below |
+| Local-swarm design docs (two copies) | Four NVIDIA candidates, one line each, under "Candidates, unverified" below |
 | An instincts file about a different repository | Nothing portable |
 
 One hypothesis, not a fact: a
