@@ -16,15 +16,16 @@ nothing complained.
 
 | Tier | Provider key | Serves |
 |---|---|---|
-| parent | `custom:local` | the conversation (moved off DeepSeek/hf-router 2026-09-28) |
-| subagents | `custom:nvidia-nim` | delegation, its own rate-limit bucket |
-| 429 fallback + heavy aux | `custom:or-fallback` | `compression`, `web_extract` |
-| floor | `custom:local` | 5 auxiliary slots, offline-capable |
+| parent | `custom:nvidia-nim` | the conversation: `nvidia/nemotron-3.5-super-vl-120b-a12b`, the only primary model (2026-10-19) |
+| subagents, vision, MoA reference | `custom:nvidia-nim` | the same model, the same bucket |
+| MoA aggregator | `custom:nvidia-nim` | `nvidia/nemotron-3-ultra-550b-a55b` (text-only), the one deliberate exception; it is the acting model on a MoA turn |
+| 429 fallback + heavy aux | `custom:or-fallback` | fallback 1; `compression`, `web_extract` |
+| offline fallback | `custom:local` | fallback 2 (49B GGUF), fallback 3 + 5 light auxiliary slots (3B) |
+| unrouted | `custom:anthropic-direct` | configured, reachable only via `/model` |
 
 `vision` used to be its own tier (`custom:local-vl`, llama-server :8080). Retired
-2026-09-25 along with the old floor model (hermes3:8b) — `vision` now routes to
-`custom:nvidia-nim` (cloud, moved there 2026-09-27 after briefly sitting on
-`custom:or-fallback`), and the floor is a single, smaller Ollama tag
+2026-09-25 along with the old floor model (hermes3:8b) — `vision` now routes to the
+primary on `custom:nvidia-nim` (a vision-language model; 2026-10-19), and the floor is a single, smaller Ollama tag
 (`hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0`, pulled via
 Ollama's own hf.co/ feature, no second local service).
 
@@ -36,8 +37,12 @@ Three structural rules hold it together. Break any one and it fails **silently**
    an entry named after its own exclusion hides itself. (There was an `hf-router`
    entry too, exclusion-safe the same way; removed 2026-09-28 once DeepSeek, the
    only thing it ever served, was gone.)
-2. **Subagents must not share the parent's provider**, or a fan-out eats the parent's
-   bucket.
+2. **One model per bucket.** A slot may share the parent's provider only on the
+   parent's exact model, only `vision` among the auxiliaries may, and every fallback
+   must sit on a different endpoint from the parent. Parent, subagents and vision now
+   share one ~40 RPM bucket on purpose; a stray second model id there is how it gets
+   spent unseen. The one sanctioned second NVIDIA id is the MoA aggregator, which CI
+   requires to differ from every MoA reference.
 3. **No auxiliary slot may sit on `auto`.** `auto` means "use the main model", which
    puts side jobs on the parent's bucket — and it is how `vision` broke once, left on
    `auto` after the parent changed to a text-only model.

@@ -25,7 +25,7 @@ nothing complained.
 |---|---|---|
 | parent | `custom:nvidia-nim` | the conversation: `nvidia/nemotron-3.5-super-vl-120b-a12b`, the only primary model (2026-10-19) |
 | subagents, vision, MoA reference | `custom:nvidia-nim` | the same model, the same bucket |
-| MoA aggregator | `custom:local` | the 49B Nemotron GGUF, the one deliberate exception |
+| MoA aggregator | `custom:nvidia-nim` | `nvidia/nemotron-3-ultra-550b-a55b` (text-only), the one deliberate exception; it is the acting model on a MoA turn |
 | 429 fallback + heavy aux | `custom:or-fallback` | fallback 1; `compression`, `web_extract` |
 | offline fallback | `custom:local` | fallback 2 (49B GGUF), fallback 3 + 5 light auxiliary slots (3B) |
 | unrouted | `custom:anthropic-direct` | configured, reachable only via `/model` |
@@ -48,7 +48,8 @@ Three structural rules hold it together. Break any one and it fails **silently**
    parent's exact model, only `vision` among the auxiliaries may, and every fallback
    must sit on a different endpoint from the parent. Parent, subagents and vision now
    share one ~40 RPM bucket on purpose; a stray second model id there is how it gets
-   spent unseen.
+   spent unseen. The one sanctioned second NVIDIA id is the MoA aggregator, which CI
+   requires to differ from every MoA reference.
 3. **No auxiliary slot may sit on `auto`.** `auto` means "use the main model", which
    puts side jobs on the parent's bucket — and it is how `vision` broke once, left on
    `auto` after the parent changed to a text-only model.

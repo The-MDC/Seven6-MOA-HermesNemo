@@ -17,19 +17,28 @@ parent      custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   THE pr
 subagents   custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   same model, same bucket
 vision      custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   pinned, never `auto`
 moa ref     custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b
-aggregator  custom:local         Llama-3.3-Nemotron-Super-49B-v1.5, UD-Q8_K_XL (Ollama)  the one deliberate exception
+aggregator  custom:nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b        the one deliberate exception (2026-10-19), text-only
 fallback 1  custom:or-fallback   qwen/qwen3.5-122b-a10b              429 escape + 2 heavy aux (compression, web_extract)
-fallback 2  custom:local         the 49B GGUF above                  offline, full strength
+fallback 2  custom:local         Llama-3.3-Nemotron-Super-49B-v1.5, UD-Q8_K_XL (Ollama)  offline, full strength
 fallback 3  custom:local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0 (Ollama)   last resort + 5 light aux slots
 unrouted    custom:anthropic-direct  claude-sonnet-5                 configured, intact, reachable only via /model
 ```
 
-**Nemotron 3.5 Super VL is the only model this build routes inference to**, on
-request (2026-10-19: "the nemotron 3.5 Super VL should be the only gateway and
-inference ... leave the other inference gateways intact"). OpenRouter, local Ollama
-and Anthropic-direct stay configured; the first two are failover, the third is
-unrouted. The aggregator is the one role that is deliberately another model: MoA
-needs a different provider and model to check the reference against.
+**Nemotron 3.5 Super VL is the primary model**, on request (2026-10-19: "the
+nemotron 3.5 Super VL should be the only gateway and inference ... leave the other
+inference gateways intact"). OpenRouter, local Ollama and Anthropic-direct stay
+configured; the first two are failover, the third is unrouted. The one other model
+this build routes to is the **MoA aggregator**, `nvidia/nemotron-3-ultra-550b-a55b`
+(2026-10-19, on request): on a MoA turn the aggregator is the ACTING model (it writes
+the reply and runs every tool-loop iteration; the references only advise, once per
+user turn), so it is text-only here, slower per call than Super VL, and on the same
+NIM bucket. CI requires it to differ from every reference, to be listed under its
+provider's `models:`, to carry a raised compaction threshold, and to match between the
+flat `moa.aggregator` key and `moa.presets.<default>.aggregator` -- the two shapes of
+the MoA schema, both written because the installed Hermes version is unconfirmed.
+Capability is mixed, not one-sided: NVIDIA's own tables put Ultra ahead on tau2-bench,
+IFBench and SWE-bench Verified and Super VL ahead on BrowseComp, Terminal-Bench 2.1 and
+GPQA, and Artificial Analysis's index scores Super VL 26 to Ultra's 23.
 
 The id `nvidia/nemotron-3.5-super-vl-120b-a12b` was checked against NVIDIA's own
 catalog (`GET https://integrate.api.nvidia.com/v1/models`, HTTP 200, 81 models,

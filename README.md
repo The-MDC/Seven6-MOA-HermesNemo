@@ -21,9 +21,9 @@ request.
 | subagents | `custom:nvidia-nim` | `nvidia/nemotron-3.5-super-vl-120b-a12b` | same model, same bucket |
 | vision | `custom:nvidia-nim` | `nvidia/nemotron-3.5-super-vl-120b-a12b` | pinned, never `auto`; the primary can see |
 | MoA reference | `custom:nvidia-nim` | `nvidia/nemotron-3.5-super-vl-120b-a12b` | |
-| MoA aggregator | `custom:local` | `hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL` (Ollama) | the one role that is deliberately another model, so MoA still checks the reference against something |
+| MoA aggregator | `custom:nvidia-nim` | `nvidia/nemotron-3-ultra-550b-a55b` (550B total / 55B active, text-only) | the one role that is deliberately another model. It is the acting model on a MoA turn, so it runs the tool loop; CI requires it to differ from every reference |
 | fallback 1 | `custom:or-fallback` | `qwen/qwen3.5-122b-a10b` | 429 escape, different bucket |
-| fallback 2 | `custom:local` | the 49B GGUF above | offline, full strength |
+| fallback 2 | `custom:local` | `hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL` (Ollama) | offline, full strength |
 | fallback 3 / floor | `custom:local` | `hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0` (Ollama) | last resort, plus 5 light auxiliary slots (title, approval, mcp, skills_hub, curator) |
 | heavy aux | `custom:or-fallback` | `qwen/qwen3.5-122b-a10b` | compression, web_extract |
 | unrouted | `custom:anthropic-direct` | `claude-sonnet-5` | reachable only via `/model` |

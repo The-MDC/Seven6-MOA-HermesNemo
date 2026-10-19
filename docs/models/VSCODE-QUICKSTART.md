@@ -9,8 +9,9 @@ before any of that matters.
 **Nemotron 3.5 Super VL is the only primary model (2026-10-19, on request).** The
 parent, subagents, MoA reference and vision all run `nvidia/nemotron-3.5-super-vl-120b-a12b`
 on NVIDIA NIM, so the fast path is cloud-first again: `NVIDIA_API_KEY` is what makes
-Hermes start. The local Ollama models are now failover and the MoA aggregator, not the
-parent, so §2.2 is needed for offline strength and MoA, not to get a first reply.
+Hermes start. The MoA aggregator is the one other model: `nvidia/nemotron-3-ultra-550b-a55b`
+on the same NIM key (text-only, 550B). The local Ollama models are failover only, not the
+parent and not the aggregator, so §2.2 is needed for offline strength, not for MoA or a first reply.
 DeepSeek and the `hf-router` provider stay removed (2026-09-28); `HF_TOKEN` is gone.
 
 Every step has a **success line**. A step is done when the output matches it —
@@ -118,21 +119,22 @@ a smaller download, and it now backs every slot below including `approval`.
 This one model already unblocks five of the eight auxiliary slots — routing,
 classification, tool selection, titles, curation.
 
-### 2.2 — Local 49B (MoA aggregator and offline fallback)
+### 2.2 — Local 49B (offline fallback)
 
 ```powershell
 ollama pull hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL
 ```
 
 Split GGUF, 2 files, ~58.68 GB combined -- an order of magnitude past the
-support model above. It was the parent from 2026-09-28 to 2026-10-19; it is now
-the MoA aggregator and `fallback_providers` link 2 (offline, full strength).
+support model above. It was the parent from 2026-09-28 to 2026-10-19 and, until
+the same day, the MoA aggregator; it is now `fallback_providers` link 2 only
+(offline, full strength).
 Confirm real disk space and VRAM/RAM headroom before pulling -- this is
 not a "fast path" download in the way the 3.4 GB support model is.
 **Success:** `ollama list` shows the full tag above.
 
 If you only want Hermes conversing, you can stop after 2.1 and §3: the parent is
-on NIM. Skipping this model costs the MoA aggregator and the offline tiers, and
+on NIM. Skipping this model costs the offline tiers only, and
 §4's verification will report the 49B as missing.
 
 ## 3. Cloud tiers
@@ -247,16 +249,16 @@ parent      nvidia-nim    nemotron-3.5-super-vl-120b-a12b      API only, the pri
 subagents   nvidia-nim    nemotron-3.5-super-vl-120b-a12b      same model, same bucket
 vision      nvidia-nim    nemotron-3.5-super-vl-120b-a12b      pinned; it is a VL model
 moa ref     nvidia-nim    nemotron-3.5-super-vl-120b-a12b
-aggregator  local         Llama-3.3-Nemotron-Super-49B-v1.5, UD-Q8_K_XL   Ollama, §2.2
+aggregator  nvidia-nim    nemotron-3-ultra-550b-a55b       API only, text-only, the acting model on MoA turns
 fallback 1  or-fallback   Qwen3.5-122B-A10B      API only, also 2 heavy aux slots
-fallback 2  local         the 49B GGUF above     offline, full strength
+fallback 2  local         Llama-3.3-Nemotron-Super-49B-v1.5, UD-Q8_K_XL   Ollama, §2.2; offline, full strength
 fallback 3  local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0
                           last resort + 5 light aux slots (swapped from hermes3:8b)
 unrouted    anthropic-direct  claude-sonnet-5    configured, intact, via /model only
 ```
 
 The total download is now the 3.4 GB floor model, plus the ~58.68 GB 49B only if you
-want the MoA aggregator and the offline tier.
+want the offline tier.
 
 Not covered here, deliberately: the seven MCP servers, `hermes-council`'s
 dependency fault, and the Codex bridge handshake. None of them gate the model
