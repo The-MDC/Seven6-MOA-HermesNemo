@@ -282,6 +282,46 @@ else
     bad "tool-calling probe: HTTP $CODE"
 fi
 
+# ----------------------------------------------------------- reasoning knobs --
+#
+# The Super VL model card documents `enable_thinking` and `medium_effort` through
+# `chat_template_kwargs`. Nobody has checked that the HOSTED endpoint honours them,
+# or how Hermes' reasoning_effort maps onto them. This sends one request with
+# thinking switched off and reports what comes back. It is informational: a
+# rejection warns, never fails, because the route works without the knob.
+# Accepted is not the same as effective, so the output says what it observed and
+# nothing more.
+hdr "reasoning knobs (observational)"
+
+cat > "$TMP/think.json" <<JSON
+{"model":"$NIM_MODEL",
+ "messages":[{"role":"user","content":"Reply with the single word: ready"}],
+ "max_tokens":256,
+ "chat_template_kwargs":{"enable_thinking":false},
+ "stream":false}
+JSON
+
+CODE=$(curl -sS -o "$TMP/thinkres.json" -w '%{http_code}' --max-time 120 \
+    -H "Authorization: Bearer $NVIDIA_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d @"$TMP/think.json" \
+    "$NIM_BASE/chat/completions" 2>/dev/null) || CODE="000"
+
+case "$CODE" in
+    200)
+        if grep -q '"reasoning_content"\|"reasoning"' "$TMP/thinkres.json" 2>/dev/null; then
+            warn "chat_template_kwargs.enable_thinking=false was accepted, but the reply still carries reasoning text. The knob may not take effect on this endpoint."
+        else
+            ok "chat_template_kwargs.enable_thinking=false accepted; the reply carries no reasoning text"
+        fi ;;
+    400|422)
+        warn "chat_template_kwargs rejected (HTTP $CODE). The model-card knobs are not usable through this endpoint; leave them out of config.yaml." ;;
+    429)
+        warn "reasoning-knob probe: 429, rate limited, not a capability result" ;;
+    *)
+        warn "reasoning-knob probe: HTTP $CODE" ;;
+esac
+
 # ------------------------------------------------------------- other buckets --
 #
 # The PARENT, subagents, MoA reference and vision all run on NIM now (primary

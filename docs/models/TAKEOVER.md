@@ -3,7 +3,7 @@
 For whoever implements this next, running on the Windows box rather than in CI.
 Self-contained on purpose: you do not need to read another file in this repo to
 execute it. Context for *why* the stack is shaped this way is in
-`handoff-2026-09-22.md`; you do not need it to follow the steps below.
+`HANDOFF-NEXT-SESSION.md`; you do not need it to follow the steps below.
 
 ## Division of labour
 
@@ -235,8 +235,9 @@ affect the current one.
 
 ### Step 3.4 — Install the ported skills
 
-`hermes-skills/` holds 31 skills: 29 Claude skills converted to Hermes format, plus
-two written by hand for this build. They are what let this install carry work on its
+`hermes-skills/` holds 28 skills across 11 categories (the figure
+`scripts/check-capabilities.py` reports as "hermes"): ported Claude skills plus some
+written by hand for this build. They are what let this install carry work on its
 own rather than being a bare model router — research, security audit, investor
 material, local desktop operation. Copying them is a separate step from
 `hermes-apply.ps1`, which installs two config files and nothing else.
@@ -248,7 +249,7 @@ Copy-Item -Path 'hermes-skills\*' -Destination $dest -Recurse -Force
 hermes skills list
 ```
 
-**Success:** `hermes skills list` shows 31 skills across 12 categories — the eleven
+**Success:** `hermes skills list` shows these 28 skills across 11 categories — the ten
 ported ones (`blockchain`, `software-development`, `security`, `research`, `finance`,
 `creative`, `devops`, `productivity`, `media`, `autonomous-ai-agents`) plus
 **`operations`**.
@@ -524,9 +525,9 @@ silently substitutes a model is exactly what this catches, and no local check ca
 
 ### Step 6.2 — Record the result
 
-If anything diverged from this repo, update `docs/models/handoff-2026-09-22.md`
-rather than leaving the difference undocumented. That file exists because the last
-divergence went unrecorded for three days and cost a session to rediscover.
+If anything diverged from this repo, update `docs/models/HANDOFF-NEXT-SESSION.md`
+rather than leaving the difference undocumented. The last divergence went unrecorded
+for three days and cost a session to rediscover.
 
 ---
 

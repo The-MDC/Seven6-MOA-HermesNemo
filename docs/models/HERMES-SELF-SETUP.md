@@ -33,6 +33,19 @@ There used to be a second row here for `nemotron-nano-12b-v2-vl` on `llama-serve
 only one local model now, pulled with one `ollama pull` command, and nothing
 else to hand-start before Hermes can take over.
 
+## Why some steps can never be delegated
+
+Three different reasons, and they are worth telling apart:
+
+| Reason | Steps | Why Hermes cannot |
+|---|---|---|
+| **Credentials** | the `.env` keys | Only you hold them. Nothing in this repo has ever contained one, and `.gitignore` enforces that. A step that asks an agent to handle a key is a step that logs it. |
+| **Bootstrap** | installing Ollama and pulling the floor model | The local tier cannot install the backend that serves it. |
+| **Authority** | renaming a repo, merging a PR, rotating a live token | Consequences outside this machine. |
+
+Everything after the bootstrap, meaning the config install, verification and reading
+output back, Hermes runs.
+
 ## The prompt
 
 ```text
