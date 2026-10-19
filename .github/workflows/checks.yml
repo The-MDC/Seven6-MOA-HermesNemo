@@ -146,7 +146,7 @@ jobs:
 
           providers = d["providers"]
           # Assert the key exists before indexing it. Renaming this provider is a
-          # real deployment shape (handoff-2026-09-22.md reports `nvidia`), and
+          # real deployment shape (an earlier deployment reported `nvidia`), and
           # indexing a missing key raises a bare KeyError that names no cause —
           # the one failure mode most likely to hit someone mid-reconciliation.
           assert "nvidia-nim" in providers, \
@@ -349,7 +349,7 @@ jobs:
           # points at, and both ways a reference dies are silent: Hermes resolves a
           # dead one by falling back to the main model, so the symptom is a bill and
           # a latency change, not an error. Both were observed on a live deployment,
-          # recorded in docs/models/handoff-2026-09-22.md.
+          # recorded in docs/models/HANDOFF-NEXT-SESSION.md.
           #
           #   1. The reference names a provider that is also EXCLUDED. The exclusion
           #      hides it, so the slot silently reverts to the parent. A config with
@@ -496,6 +496,42 @@ jobs:
                   f"{codex_toml} sets {codex_forbidden} — Codex must keep its own " \
                   f"default OpenAI routing, never a silent custom provider " \
                   f"(docs/models/codex-handoff.md)"
+
+          # ---- Super VL compensations (2026-10-19) -------------------------------
+          # Super VL is a 12B-active model on a 131k window and one ~40 RPM bucket, so
+          # per-request prompt weight is a cost every turn. Three things keep it down,
+          # and each one fails SILENTLY if it drifts: nothing errors, the prompt just
+          # grows.
+          #
+          # 1. Every MCP server switches off its utility tools. Hermes registers four per
+          #    server (list/read resources, list/get prompts) unless told not to.
+          for name, srv in mcp.items():
+              t = srv.get("tools") or {}
+              assert t.get("prompts") is False and t.get("resources") is False, \
+                  f"mcp_servers.{name}.tools must set prompts: false and resources: false " \
+                  f"(four unused catalog entries per server otherwise)"
+          # 2. tool_search stays pinned on, with its listing. Off, every MCP schema goes
+          #    back into every request. A bare bridge (listing off) leaves the model
+          #    unable to see tool names at all.
+          ts = (d.get("tools") or {}).get("tool_search") or {}
+          assert ts.get("enabled") in ("on", "auto"), \
+              f"tools.tool_search.enabled must be 'on' or 'auto' (quoted), got {ts.get('enabled')!r}"
+          assert ts.get("listing", "auto") in ("on", "auto"), \
+              f"tools.tool_search.listing must be 'on' or 'auto', got {ts.get('listing')!r}"
+          # 3. Hermes loads ONE project context file and prefers .hermes.md over CLAUDE.md.
+          #    The short one has to exist, stay short, carry no Claude-Code-only
+          #    vocabulary, and name the models the config actually routes to. Reading the
+          #    ids out of the config keeps this check from holding its own copy.
+          assert os.path.exists(".hermes.md"), \
+              ".hermes.md is missing: Hermes would load the long, Claude-Code-oriented CLAUDE.md"
+          hm = open(".hermes.md", encoding="utf-8").read()
+          assert len(hm.encode()) <= 3000, \
+              f".hermes.md is {len(hm.encode())} bytes; the cap is 3000. It is paid on every request"
+          for banned in ("AskUserQuestion", "TodoWrite", ".claude/", "Claude Code", "security-review"):
+              assert banned not in hm, f".hermes.md mentions {banned!r}, which Hermes cannot act on"
+          for needed in (d["model"]["default"], agg_model):
+              assert needed in hm, \
+                  f".hermes.md does not name {needed}; it has drifted from config.yaml"
 
           print("hermes config: OK")
           print("  primary   ", d["model"]["provider"], d["model"]["default"])

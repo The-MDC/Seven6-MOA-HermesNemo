@@ -46,12 +46,11 @@ $PSVersionTable.PSVersion.Major
 
 ```powershell
 cd $HOME
-git clone https://github.com/The-MDC/hermes-codex-build.git
-cd hermes-codex-build
-git checkout claude/lucid-noether-0ui54b
+git clone https://github.com/The-MDC/seven6-hermes-moa.git
+cd seven6-hermes-moa
 ```
 
-**Success:** `git log -1 --oneline` names a `hermes:` or `ci:` commit.
+**Success:** `git log -1 --oneline` prints a commit, and `.hermes.md` exists in the folder.
 
 Then **File → Open Folder** on that directory, so the Claude Code extension picks
 up `CLAUDE.md` and the repo's skills. Install the extension from the Marketplace
@@ -152,7 +151,7 @@ $envFile
 
 ### 3.2 — Add the keys
 
-Open it in VS Code — `code $envFile` — and add three lines. **Paste the values in
+Open it in VS Code — `code $envFile` — and add two lines. **Paste the values in
 the editor, never into a terminal**, so they do not land in shell history:
 
 ```
@@ -191,7 +190,7 @@ inside Hermes specifically.
 ### 3.3 — Install the config
 
 ```powershell
-cd $HOME\hermes-codex-build
+cd $HOME\seven6-hermes-moa
 pwsh -File scripts\hermes-apply.ps1 -WhatIf     # look first
 pwsh -File scripts\hermes-apply.ps1
 ```

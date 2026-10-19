@@ -58,11 +58,11 @@ would mean inventing behaviour and shipping it as though it were recovered, so i
 was left out. The git-bypass half — the part with clear, checkable intent — is what
 `pre-bash-guard.js` implements.
 
-`session-start.js`, `session-end.js`, `pre-compact.js` and `stop.js` remain in this
-directory but are **not wired** and do nothing. They are forwarders to Cursor hooks
-(`check-console-log.js`, `evaluate-session.js`, `cost-tracker.js`) that are not in
-this repository. See the note at the top of `adapter.js`. `stop-audit.js` supersedes
-the only part of `stop.js` whose intent was documented.
+`session-start.js`, `session-end.js`, `pre-compact.js` and `stop.js` were removed
+2026-10-19. They were unwired forwarders to Cursor hooks (`check-console-log.js`,
+`evaluate-session.js`, `cost-tracker.js`) that were never in this repository, and they
+did nothing. `adapter.js` now exports only `readStdin`. `stop-audit.js` supersedes the
+only part of `stop.js` whose intent was documented.
 
 ## Verification
 

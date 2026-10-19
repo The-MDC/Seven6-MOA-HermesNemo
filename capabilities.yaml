@@ -2,9 +2,10 @@
 #
 # WHY THIS FILE EXISTS
 #     Capabilities in this build are not shared, they are DUPLICATED, and the
-#     duplicates had already diverged before anything noticed: 78 skills under
-#     .claude/skills/, 31 under hermes-skills/, and nine names in common. Ten MCP
-#     servers in .mcp.json, seven in config.yaml, two in common.
+#     duplicates had already diverged before anything noticed (when this file was
+#     written: 78 skills under .claude/skills/, 31 under hermes-skills/, nine names in
+#     common). Current counts are printed by scripts/check-capabilities.py, never
+#     typed into prose, because typed counts go stale.
 #
 #     Nothing declared any of it. A capability was "available" only because someone
 #     remembered to put a copy in the right folder, and CI checked none of it.

@@ -10,6 +10,13 @@ you are about to add any, you are in the wrong repo. `SCRUB` in
 `scripts/port-skills-to-hermes.js` removes product references from ported skill
 content, and the port fails if one survives into the output tree.
 
+## Two context files, on purpose
+
+This file is for Claude Code. **Hermes loads `.hermes.md` instead of this file** when it runs
+from this checkout (its priority is `.hermes.md` > `AGENTS.md` > `CLAUDE.md`, and only one
+loads). `.hermes.md` is short because Super VL has 12B active parameters, a 131k window and
+a ~40 RPM bucket; CI caps its size. Change routing facts in both.
+
 ## The routing
 
 ```
@@ -150,8 +157,7 @@ Wired in `.claude/settings.json` — the only file Claude Code reads hooks from.
 - `pre-bash-guard.js` — `PreToolUse` / `Bash` — blocks `--no-verify` git hook bypass (the only blocking hook)
 - `stop-audit.js` — `Stop` — console.log sweep across changed files
 
-**Not active**: `session-start.js`, `session-end.js`, `pre-compact.js` and `stop.js`
-are unwired forwarders to Cursor hooks that were never in this repo — they do
-nothing. `.claude/hooks/hooks.json` was a Cursor config (Cursor event names,
-`.cursor/` paths that never existed) and has been removed; Claude Code never read it.
-See `.claude/hooks/README.md`.
+**Removed 2026-10-19**: the four unwired forwarders (`session-start.js`, `session-end.js`,
+`pre-compact.js`, `stop.js`). They pointed at Cursor hooks that were never in this repo.
+`.claude/hooks/hooks.json` was likewise a Cursor config and is gone; Claude Code never
+read it. See `.claude/hooks/README.md`.

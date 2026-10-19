@@ -17,6 +17,16 @@ One official page (`…/codex/mcp-server`) is still live and still documents the
 tool in full — `codex` (start session) and `codex-reply` (continue) — which makes it
 easy to design against a surface that no longer exists. Treat that page as stale.
 
+**Update 2026-10-19:** the tool surface now exists locally as `codex-mcp`
+(`scripts/codex-mcp/server.js`, tools `codex_exec` and `codex_status`, wired in
+`mcp_servers`). It wraps the same subprocess path described below, so it adds no second
+consumer of the ChatGPT quota. It has never run against a real `codex` binary.
+
+**Why this matters for Super VL.** NVIDIA's tables put Super VL behind on terminal and
+repo-scale coding benchmarks. Send terminal-heavy, multi-file coding through
+`codex_exec` rather than asking the primary model to grind through it in `terminal`.
+That is a routing hypothesis drawn from the model card, not a measured result.
+
 The replacement, `codex app-server`, is JSON-RPC 2.0 over stdio/websocket/unix
 socket — a real embedding interface, but a second protocol client to build and
 maintain for a repo that already has a database and does not need a second one. It
@@ -58,9 +68,8 @@ this same file already depends on its credentials meaning one thing." CI asserts
 the entry stays present, the same way it asserts `or-fallback` never collides with
 its own exclusion.
 
-The trade being made explicitly: Hermes' main reasoning stays on its own parent tier (DeepSeek-V4-Pro as of 2026-09-22; Kimi-K3 when this was written; DeepSeek itself
-being removed as of 2026-09-28, replacement not yet decided — see
-`HANDOFF-NEXT-SESSION.md`), not GPT-5.x, even though the ChatGPT plan's usage
+The trade being made explicitly: Hermes' main reasoning stays on its own parent tier (Nemotron 3.5 Super VL
+on NIM as of 2026-10-19; see `HANDOFF-NEXT-SESSION.md`), not GPT-5.x, even though the ChatGPT plan's usage
 window is separately available and arguably "free" at the margin. Revisit only
 if the request-budget picture changes enough to justify a fifth entry in a
 picker this repo just fought to pin at four.

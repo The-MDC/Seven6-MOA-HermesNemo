@@ -7,7 +7,7 @@
 
   CI can only check the config FILE. It cannot see whether `hermes` is installed,
   whether Ollama holds the models the config names, or whether an endpoint
-  answers. Every silent failure recorded in docs/models/handoff-2026-09-22.md was
+  answers. Every silent failure recorded in docs/models/HANDOFF-NEXT-SESSION.md was
   of that second kind: a reference that is valid on paper and dangling on disk.
 
   Read-only. Changes nothing, starts nothing, prints no secret.

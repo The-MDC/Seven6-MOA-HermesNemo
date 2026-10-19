@@ -25,9 +25,9 @@
 # ---------------------------------------------------------------------------
 # THE SHAPE, AND WHY IT CHANGED
 #
-# This replaces the Kimi-K3 topology. See docs/models/handoff-2026-09-22.md for
-# what was actually deployed and how it had drifted; this file is the reconciled
-# target, not a record of either side.
+# This replaces the Kimi-K3 topology. See docs/models/HANDOFF-NEXT-SESSION.md
+# for the current state; this file is the reconciled target, not a record of what
+# any deployment drifted into.
 #
 #   parent      NVIDIA NIM     nemotron-3.5-super-vl-120b-a12b  -- THE primary model,
 #                              2026-10-19, on request ("the nemotron 3.5 Super VL
@@ -714,6 +714,13 @@ stt:
 # purpose rather than added by drift. Everything not on that list must still be
 # loopback or a local subprocess.
 #
+# EVERY server below sets `prompts: false` and `resources: false`. Hermes registers
+# four utility tools per server (list/read resources, list/get prompts) unless told
+# not to, and nothing here calls them. CI enforces both keys on every server.
+# `unfiltered: true` is NOT a Hermes key: the source ignores it, and with neither
+# include nor exclude set Hermes registers every tool. It is this repo's marker so CI
+# can tell a reviewed opt-out from an unnoticed one.
+#
 # `render` is deliberately ABSENT. Its endpoint (mcp.render.com) failed DNS
 # repeatedly, and the config it was configured in carried an INLINE bearer token.
 # Rotate that token in the Render dashboard before re-adding this entry, and read
@@ -725,6 +732,8 @@ mcp_servers:
   voicebox:
     url: "http://127.0.0.1:17493/mcp"
     tools:
+      prompts: false
+      resources: false
       # Explicitly unfiltered. Voicebox has never been started in this
       # environment, so its tool names are unknown here and a guessed
       # include-list would filter everything out and silently break voice. Run
@@ -739,6 +748,8 @@ mcp_servers:
   crawl4ai:
     url: "http://127.0.0.1:11235/mcp/sse"
     tools:
+      prompts: false
+      resources: false
       include:
         - crawl
         - scrape
@@ -749,6 +760,8 @@ mcp_servers:
     command: "npx"
     args: ["-y", "@atomicmemory/mcp-server"]
     tools:
+      prompts: false
+      resources: false
       include:
         - store_memory
         - search_memory
@@ -762,6 +775,8 @@ mcp_servers:
     command: "node"
     args: ["${HERMES_SKILLS_SERVER}"]
     tools:
+      prompts: false
+      resources: false
       include:
         - list_skills
         - get_skill
@@ -802,6 +817,8 @@ mcp_servers:
     command: "${HERMES_COUNCIL_LAUNCHER}"
     args: []
     tools:
+      prompts: false
+      resources: false
       include:
         - council_review
         - council_perspectives
@@ -827,6 +844,8 @@ mcp_servers:
     command: "${HERMES_CODEX_LAUNCHER}"
     args: []
     tools:
+      prompts: false
+      resources: false
       include:
         - codex_exec
         - codex_status
@@ -835,6 +854,8 @@ mcp_servers:
   cloudflare:
     url: "https://mcp.cloudflare.com/mcp"
     tools:
+      prompts: false
+      resources: false
       include:
         - workers_list
         - workers_get
@@ -844,7 +865,31 @@ mcp_servers:
   submcp:
     url: "https://mcp.submcp.com/mcp"
     tools:
+      prompts: false
+      resources: false
       unfiltered: true
+
+# TOOL SEARCH — pinned, not newly enabled.
+#
+# Checked against the Hermes source (upstream main, 2026-10-19): `tools.tool_search`
+# defaults to "auto", which activates whenever any deferrable tool exists, and every
+# `mcp-*` tool is deferrable. The model sees a short bridge (tool_search /
+# tool_describe / tool_call) plus a name-and-first-sentence listing instead of every
+# MCP schema. Pinning "on" means a future change to the upstream default cannot
+# silently put all MCP schemas back into every request on a 12B-active model with a
+# 131k window and ~40 RPM. The budget numbers below are Hermes' own defaults, written
+# out so they are visible; nothing in this repo measured better ones. `defer` is left
+# unset on purpose: an explicit list REPLACES the curated default wholesale.
+# Installed Hermes version unconfirmed: an older build ignores this block harmlessly,
+# and `hermes config check` shows whether yours knows the key.
+tools:
+  tool_search:
+    enabled: "on"
+    listing: "auto"
+    threshold_pct: 5
+    listing_max_tokens: 4000
+    search_default_limit: 5
+    max_search_limit: 25
 
 # ---------------------------------------------------------------------------
 # THROUGHPUT — everything below exists to buy requests, not to save money

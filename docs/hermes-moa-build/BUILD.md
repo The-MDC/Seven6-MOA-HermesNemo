@@ -30,13 +30,25 @@ model above is publicly hosted on Hugging Face and loaded locally via `hermes mo
 
 ## 2.1 Profile & Workspace Setup
 ```bash
-# Create a dedicated profile (isolated config & memory)
-hermes profile create seven6moa \
-  --workspace_path ~/.hermes/profiles/seven6moa \
-  --initial_status "running"
+# Create a dedicated profile (isolated config & memory).
+hermes profile create seven6moa
+```
 
-# Set memory limit — see §5 for the real per-model footprint this must cover
-hermes config set memory_limit_gb 80
+**Corrected 2026-10-19.** An earlier revision passed `--workspace_path` and
+`--initial_status` to `profile create`. Neither is a `profile create` flag in the
+Hermes source (they belong to `hermes kanban create`), and `hermes config set
+memory_limit_gb` was not found there either; treat any command in this document that
+you have not seen run as unverified.
+
+**A named profile does not get a gateway of its own.** One host gateway, started from
+the DEFAULT profile, serves every profile. If `seven6moa` is the sticky active profile
+(`hermes profile use seven6moa`), anything that launches `hermes gateway run` on its
+behalf, Hermes Desktop included, is refused with exit status 78. Keep `default` as the
+sticky profile and select `seven6moa` per command with `hermes -p seven6moa ...`:
+
+```bash
+hermes profile use default
+hermes gateway install      # or: hermes gateway run -vv   (foreground, from default)
 ```
 
 ## 2.2 Kanban Board (Task Board)
