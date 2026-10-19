@@ -1,4 +1,4 @@
-# Handoff — bring the Hermes–Codex build up, in order
+# Handoff — bring the Seven6-Hermes-MOA build up, in order
 
 One sequential list. Every step says **who executes it**, and the ones marked
 **YOU** are marked that way because Hermes structurally cannot do them — not because
@@ -84,8 +84,9 @@ bootstrap — B2 and B3 below are retired.
 This step, and B3 below, downloaded and served `nemotron-nano-12b-v2-vl` via a
 second local server (`local-vl`, llama.cpp on :8080). That tier is gone from
 `config.yaml` entirely, on request ("remove hermes 8B and the 12b"), and `vision`
-now routes to the cloud — `custom:nvidia-nim` / `nvidia/ising-calibration-1.5-31b`
-as of 2026-09-27 (it briefly routed through `custom:or-fallback` first). Nothing
+now routes to the cloud — `custom:nvidia-nim` / `nvidia/nemotron-3.5-super-vl-120b-a12b`
+as of 2026-10-19 (the primary, itself a vision-language model; before that
+`nvidia/ising-calibration-1.5-31b` from 2026-09-27, and briefly `custom:or-fallback`). Nothing
 to download or serve here anymore. Skip straight to B4.
 
 ### B3. llama.cpp, and serve it · RETIRED 2026-09-25
@@ -108,8 +109,7 @@ notepad "$env:LOCALAPPDATA\hermes\.env"
 
 | Var | Tier | Where |
 |---|---|---|
-| `HF_TOKEN` | parent | <https://huggingface.co/settings/tokens> (read scope is enough) |
-| `NVIDIA_API_KEY` | subagents | <https://build.nvidia.com> → Get API Key |
+| `NVIDIA_API_KEY` | the primary: parent + subagents + MoA reference + vision | <https://build.nvidia.com> → Get API Key |
 | `OPENROUTER_API_KEY` | fallback + compression + web_extract | <https://openrouter.ai/keys> |
 
 **Leave `FIRECRAWL_API_KEY` unset** unless you mean it — present in the environment it

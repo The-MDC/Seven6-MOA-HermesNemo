@@ -108,7 +108,7 @@
     "hermes-orchestration": {
       "source": "hand-written",
       "upstream": "hermes-skills/operations/hermes-orchestration/SKILL.md",
-      "sha256": "009ffbf05be37d82da5ccb980c9b4abeff14e2563c7c19ea8ff170d67d1b10d3",
+      "sha256": "5948f399e804e7bf816fbd30d66b5fa6a14f5b7c201419d0755e839c20dea4d9",
       "ported": "2026-09-30",
       "surfaces": [
         "claude",

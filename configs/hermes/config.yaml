@@ -1,5 +1,6 @@
-# Hermes Agent — three cloud providers plus a local one, on independent
-# rate-limit buckets (the parent itself is local now -- see below).
+# Hermes Agent -- Seven6-Hermes-MOA. One primary model, NVIDIA Nemotron 3.5 Super VL
+# on NVIDIA NIM, serves every role that routes inference; OpenRouter and local
+# Ollama are failover, and Anthropic-direct is kept configured but unrouted.
 #
 # Copy to ~/.hermes/config.yaml (back up whatever is there first), then run
 #     scripts/nim-preflight.sh
@@ -28,26 +29,29 @@
 # what was actually deployed and how it had drifted; this file is the reconciled
 # target, not a record of either side.
 #
-#   parent      your laptop    Llama-3.3-Nemotron-Super-49B-v1.5, UD-Q8_K_XL
-#                              (Ollama) -- moved here 2026-09-28, on request
-#                              ("the current parent is the 49B Nemotron"),
-#                              replacing deepseek-ai/DeepSeek-V4-Pro on the
-#                              (now-removed) HF router. SAME MODEL as the MoA
-#                              aggregator below -- not a conflict, since parent
-#                              and aggregator are unrelated roles; the conflict
-#                              this file guards against is reference-vs-aggregator
-#                              sharing a provider (see the moa: block).
-#   subagents   NVIDIA NIM     nemotron-3-nano-omni-30b-a3b-reasoning  high-compute delegation
-#                              (also the MoA reference model now -- see moa: block)
-#   fallback    OpenRouter     Qwen3.5-122B-A10B          reverted off DeepSeek 2026-09-28
-#               (+ NVIDIA NIM, nemotron-3-nano-omni-30b-a3b-reasoning, as
-#                fallback_providers[0] -- see that block's comment)
+#   parent      NVIDIA NIM     nemotron-3.5-super-vl-120b-a12b  -- THE primary model,
+#                              2026-10-19, on request ("the nemotron 3.5 Super VL
+#                              should be the only gateway and inference"). Replaces
+#                              the local 49B Nemotron GGUF (parent 2026-09-28).
+#   subagents   NVIDIA NIM     nemotron-3.5-super-vl-120b-a12b  same model, same bucket
+#   vision      NVIDIA NIM     nemotron-3.5-super-vl-120b-a12b  it is a VL model;
+#                              pinned, never `auto` -- see auxiliary.vision
+#   moa ref     NVIDIA NIM     nemotron-3.5-super-vl-120b-a12b
+#   aggregator  NVIDIA NIM     nemotron-3-ultra-550b-a55b  (550B total / 55B active)
+#                              2026-10-19, on request. The ONE role that is
+#                              deliberately not Super VL: a larger, different model
+#                              that ACTS (writes the reply, runs the tool loop) on a
+#                              MoA turn. Text-only -- see the moa: block.
+#   fallback    OpenRouter     Qwen3.5-122B-A10B          1st link in fallback_providers
+#               your laptop    Llama-3.3-Nemotron-Super-49B GGUF (Ollama)
+#                                                         2nd link (offline, full strength)
 #   floor       your laptop    Hermes-3-Llama-3.2-3B-abliterated:Q8_0 (Ollama)
-#                              support, routing, memory -- swapped from hermes3:8b
-#                              2026-09-25, on request
-#   vision                     RETIRED as a local tier 2026-09-25 -- reverted to
-#                              cloud (nvidia-nim/ising-calibration-1.5-31b). See
-#                              auxiliary.vision's comment.
+#                              last link in fallback_providers, plus the five light
+#                              auxiliary slots (title, approval, mcp, skills_hub,
+#                              curator) -- kept off the NIM bucket on purpose
+#   heavy aux   OpenRouter     Qwen3.5-122B-A10B          compression, web_extract
+#   unrouted    Anthropic      claude-sonnet-5            anthropic-direct: configured,
+#                              intact, reachable only via /model
 #
 # DEEPSEEK IS FULLY REMOVED FROM THIS BUILD as of 2026-09-28, on request,
 # repo-wide -- parent was the last role that still had it. The `hf-router`
@@ -71,11 +75,15 @@
 # which is why this repo ran a second server (llama.cpp) rather than an Ollama tag
 # for as long as it carried vision locally at all.
 #
-# THE INVARIANT IS "a different rate-limit bucket from the parent." It is NOT
-# "subagents must avoid NIM" — that was the old rule, and it encoded the old
-# topology rather than the requirement. The parent now lives on `local` (no
-# cloud bucket at all), so NIM is entirely the children's own bucket and a
-# fan-out there cannot starve the parent regardless of anything else in flight.
+# THE INVARIANT, AS OF 2026-10-19: one model per bucket. It used to be "a
+# different rate-limit bucket from the parent" -- first a loopback host, then
+# "subagents avoid NIM", then (parent on local) "NIM is the children's own
+# bucket". Each of those encoded the topology of its day. The parent is on NIM
+# now, by request, so subagents and vision share its bucket and the rule the CI
+# block enforces is narrower: a slot may share the parent's provider only on the
+# parent's exact model, and only vision among the auxiliaries may. Every
+# fallback must sit on a different endpoint from the parent, because a 429 on
+# NIM cannot be answered from NIM.
 #
 # WHY DEEPSEEK'S OLD FALLBACK ROUTES THROUGH or-fallback AND NOT BY NAME.
 # `deepseek` and `openrouter` are both in `excluded_providers` below.
@@ -89,17 +97,25 @@
 # VERIFY BEFORE TRUSTING, things this file cannot check:
 #   1. That Ollama has actually pulled BOTH local models: the floor
 #      (`hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0`) and
-#      the parent/aggregator 49B (`hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL`,
+#      fallback-2 49B (`hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL`,
 #      split GGUF, ~58.68 GB) — see the `local` provider's comment for the pull
 #      commands. A model listed here but absent on the machine is exactly the
 #      dangling reference CI rejects in config and cannot detect on disk.
 #      scripts/hermes-verify.ps1 checks this the same way it always has; it
 #      just now has two local models to check instead of one.
-#   2. That the box running `local` actually has the RAM/VRAM for a 49B model
-#      resident as the PARENT, not just as an occasional MoA aggregator call —
-#      the parent is now on the hot path for every turn, not a once-in-a-while
-#      synthesis step. See the `local` provider's context_length comment for
-#      the same caveat stated there.
+#   2. That the box running `local` has the RAM/VRAM for the 49B GGUF when it is
+#      called. Since 2026-10-19 it is fallback 2 only (it was the MoA aggregator
+#      until the aggregator moved to NIM the same day), so it only has to load
+#      on a failover. See the `local` provider's context_length comment for the
+#      same caveat.
+#   3. That NVIDIA_API_KEY can see BOTH NVIDIA models this file routes to --
+#      the primary and the MoA aggregator:
+#          bash scripts/nim-preflight.sh --list | grep -iE 'super-vl|ultra-550b'
+#          curl -s https://integrate.api.nvidia.com/v1/models/nvidia/nemotron-3-ultra-550b-a55b
+#      (no key; HTTP 200 = served, 410 = retired and the body gives the date)
+#          NVIDIA_NIM_MODEL=nvidia/nemotron-3-ultra-550b-a55b bash scripts/nim-preflight.sh
+#      A catalog that lists a model for one key can omit it for another, and the
+#      public catalog listing says nothing about whether THIS key may call a 550B.
 # ---------------------------------------------------------------------------
 
 providers:
@@ -131,30 +147,96 @@ providers:
     # NVIDIA model swap from now on, not just when something looks wrong:
     #     bash scripts/nim-preflight.sh --list | grep -i nemotron
     #
-    # Replacement: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning. Live-verified
-    # THE HARD WAY -- not triangulated, actually answered -- in the same /moa
-    # fan-out that caught the 49B's death, on this account, 2026-09-27. It is a
-    # reasoning-tuned MoE (30B total, ~3B active per the "a3b" naming), smaller
-    # in ACTIVE compute than the dense 49B this replaces, but alive beats
-    # well-specified and dead. It was also already this account's own default
-    # model before this change, which is as strong a "this id works" signal as
-    # a NIM account can give without calling nim-preflight.sh directly.
+    # PRIMARY MODEL, 2026-10-19, on request: nvidia/nemotron-3.5-super-vl-120b-a12b
+    # carries parent, subagents, MoA reference and vision (see model:, delegation:,
+    # moa:, auxiliary.vision). The one other model routed to is the MoA AGGREGATOR,
+    # nvidia/nemotron-3-ultra-550b-a55b, added the same day on request (below).
+    # Everything else in this file is either an unrouted gateway kept intact on
+    # request (anthropic-direct), failover only (or-fallback, local), or a
+    # deliberate non-NIM side job (see auxiliary:).
     #
-    # nvidia/nemotron-3.5-lightning-30b-a3b also answered live in the same
-    # fan-out (speed-optimized, not reasoning-tuned) -- a reasonable alternative
-    # if delegation/fallback latency matters more than reasoning depth here.
-    default_model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+    # LIVE-VERIFIED, not triangulated: GET https://integrate.api.nvidia.com/v1/models
+    # (no key needed) returned HTTP 200 with 81 models on 2026-10-19 and listed
+    # exactly this id. 120B total / ~12B active ("a12b"), hybrid Mamba-2 + MoE +
+    # attention, vision-language (image, video, text in; text out), up to 1M tokens
+    # per the model card. This id is THIS GATEWAY'S. The same weights carry other
+    # ids elsewhere -- do not paste these into this entry:
+    #     Vercel AI Gateway           nvidia/nemotron-3.5-super-vl
+    #     Hugging Face / Baseten      nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B
+    #     local served alias          nemotron-3.5-super-vl
+    # A forum report says the hosted endpoint once answered under a different
+    # model id than the one requested. UNVERIFIED -- confirm on this account with
+    # the live call in scripts/nim-preflight.sh (it now probes this id).
+    #
+    # SAMPLING: NVIDIA's card recommends temperature 1.0, top_p 0.95; model:
+    # below is set to match. Reasoning is toggled per request (`enable_thinking`),
+    # not by a different id.
+    #
+    # ONE BUCKET NOW. Parent, subagents, MoA reference, vision and the MoA
+    # aggregator all spend this key's ~40 RPM together. The old rule "children get
+    # their own bucket" was traded away on request; the CI block now requires any
+    # auxiliary or delegation slot sharing the parent's provider to use the SAME
+    # model as the parent (one model, one bucket, no stray second NIM id). The MoA
+    # aggregator is the single sanctioned exception; the CI block requires it to be
+    # listed here and to differ from every MoA reference. A fan-out can starve the parent -- keep
+    # delegation.max_concurrent_children low, and see credential_pool_strategies
+    # for adding a second key (same provider, fill_first).
+    #
+    # MOA AGGREGATOR ID, 2026-10-19, on request ("change the MOA Aggregator to the
+    # Nvidia Nemotron 226 to 250B or 550B"): nvidia/nemotron-3-ultra-550b-a55b.
+    # LIVE-VERIFIED the same way as the primary: GET /v1/models, HTTP 200, 81
+    # models, this exact id listed -- and, stronger, GET /v1/models/<id> (no key)
+    # returns HTTP 200 for BOTH NVIDIA ids in this file. That per-id endpoint also
+    # says WHY an id is dead: it returns HTTP 410 with the end-of-life date for a
+    # retired one (moonshotai/kimi-k3: 2026-10-15; the 49B: 2026-08-26) and 404 for
+    # one NIM never had. 550B total / 55B active, hybrid Mamba-Attention
+    # LatentMoE, GA 2026-06-04, "up to 1M" context (256k default serving config;
+    # not measured on this endpoint), OpenMDW-1.1. TEXT IN, TEXT OUT: unlike Super
+    # VL it cannot take an image. Reasoning is ON by default (`enable_thinking`,
+    # plus a cheaper `medium_effort`); NVIDIA's examples sample at temperature 1.0,
+    # top_p 0.95 -- the same as the primary. Same id on OpenRouter
+    # (`nvidia/nemotron-3-ultra-550b-a55b`, $0.50/$2.20 per MTok, 262K context
+    # paid, `:free` variant listed at 1M); Hugging Face and Baseten spell it
+    # `nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4`.
+    #
+    # WHY 550B AND NOT THE 226-250B HALF OF THE ASK. NIM's hosted catalog has
+    # nothing in 226-250B: its large Nemotrons are 120B (Super), 253B
+    # (Llama-3.1-Nemotron-Ultra, whose free endpoint NVIDIA marks Deprecated --
+    # the 49B was killed with the same marking), 340B (Nemotron-4) and 550B. The
+    # one Nemotron-named 235B anywhere is nvidia/Qwen3-Nemotron-235B-A22B-GenRM on
+    # Hugging Face: Qwen3-235B-A22B-Thinking-2507 fine-tuned as a reward MODEL
+    # that scores two candidate replies 1-5 / 1-6. It does not act or call tools,
+    # no inference provider hosts it, and self-hosting it needs 8x H100, so it
+    # cannot be an aggregator here. (The first reply to this request said no
+    # Nemotron existed in that range; that was wrong, and this is the correction.)
+    #
+    # NOT MEASURED HERE: whether this key may call the 550B at all, its latency, and
+    # whether NVIDIA gives it a lower rate cap than the 120B. Run the second
+    # preflight command in the VERIFY block at the top of this file before relying
+    # on it.
+    #
+    # PREVIOUS ids on this gateway, kept so nothing dangles for /model users:
+    #   nvidia/nemotron-3-nano-omni-30b-a3b-reasoning  -- was subagents + fallback 1
+    #       + MoA reference (live-verified 2026-09-27). Still listed below for the
+    #       picker; no longer routed anywhere.
+    #   nvidia/llama-3.3-nemotron-super-49b-v1.5       -- DEAD, HTTP 410, EOL
+    #       2026-08-26 (caught live via /moa). Not listed. Check any future swap with:
+    #           bash scripts/nim-preflight.sh --list | grep -i nemotron
+    default_model: nvidia/nemotron-3.5-super-vl-120b-a12b
     models:
+      - nvidia/nemotron-3.5-super-vl-120b-a12b
+      - nvidia/nemotron-3-ultra-550b-a55b
       - nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
     discover_models: false
     # nim-preflight.sh reports what the endpoint advertises. Set this to the number
-    # it prints. The preflight now defaults to the model above; NVIDIA_NIM_MODEL
+    # it prints. The preflight defaults to the model above; NVIDIA_NIM_MODEL
     # overrides it if you need to probe a different one.
     #
-    # CONTEXT LENGTH NOT RE-VERIFIED FOR THIS MODEL. 131072 carried over from the
-    # dead 49B's model-card figure, which is not guaranteed to match this MoE's
-    # actual window. Confirm via nim-preflight.sh or the model card before
-    # trusting long-context calls on this tier.
+    # CONTEXT LENGTH NOT RE-VERIFIED FOR nemotron-3.5-super-vl. 131072 is carried
+    # over unchanged from the previous entry. The model card claims up to 1M tokens,
+    # but a card is not an endpoint: raise this only to the number nim-preflight.sh
+    # measures on this account. A value too LOW wastes window; too HIGH overflows
+    # on a rejected request.
     context_length: 131072
 
   or-fallback:
@@ -227,8 +309,9 @@ providers:
     default_model: hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
     models:
       - hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
-      # ADDED 2026-09-28, on request: the MoA aggregator (see moa.aggregator
-      # below) moved here from the now-dead NVIDIA-hosted 49B id. Split GGUF,
+      # ADDED 2026-09-28, on request, as the MoA aggregator (moved here from the
+      # now-dead NVIDIA-hosted 49B id). Since 2026-10-19 it is fallback 2 only:
+      # the aggregator moved to nvidia-nim (see moa.aggregator below). Split GGUF,
       # 2 files, 58.68 GB combined -- live-verified via the Hugging Face Hub
       # (unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF). `ollama pull
       # hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL` handles
@@ -252,7 +335,7 @@ providers:
     # note there is more room now than hermes3:8b left, since the weights
     # themselves are smaller (3.4 GB vs. hermes3:8b's ~4.7 GB Q4 tag).
     #
-    # THIS WAS SIZED FOR THE 3B FLOOR MODEL ONLY. The 49B aggregator added above
+    # THIS WAS SIZED FOR THE 3B FLOOR MODEL ONLY. The 49B (fallback 2) added above
     # shares this same `local` provider and this same context_length -- not
     # re-tuned for it. 32768 is a conservative floor that will run on the 49B
     # too, just not verified as the RIGHT number for it; re-check once the 49B
@@ -323,70 +406,56 @@ model:
   # the OpenRouter catalog overrides an explicit custom base_url and sends your
   # key to a third party.
   #
-  # MOVED OFF hf-router/DeepSeek-V4-Pro 2026-09-28, on request: "the current
-  # parent is the 49B Nemotron." This is the SAME model as the MoA aggregator
-  # below (custom:local, same GGUF) -- that is not a self-grading conflict the
-  # way reference-vs-aggregator sharing a provider would be; parent and MoA
-  # aggregator are unrelated roles. hf-router is REMOVED, not left dangling --
-  # see `providers:` above -- since nothing else in this file used it.
+  # MOVED TO NVIDIA NIM / nemotron-3.5-super-vl-120b-a12b 2026-10-19, on request:
+  # "the nemotron 3.5 Super VL should be the only gateway and inference." Before
+  # this the parent was the local 49B Nemotron GGUF (2026-09-28, off
+  # hf-router/DeepSeek-V4-Pro); that GGUF stays pulled and wired as fallback 2
+  # (it was also the MoA aggregator until the aggregator moved to NIM the same
+  # day -- see the moa: block), so it is demoted, not removed. See the
+  # `nvidia-nim` provider entry for the live-verification of
+  # this id, why it differs from the same weights on other gateways, and what
+  # sharing one bucket costs.
   #
-  # This also resolves the isolation question the old parent replacement was
-  # stuck on: local has no cloud rate-limit bucket at all, so parent no longer
-  # competes with subagents (nvidia-nim), fallback/auxiliaries (or-fallback),
-  # or anything else for a shared quota. Requires the 49B GGUF actually pulled
-  # and running in Ollama -- see the `local` provider's comment for the pull
-  # command and the real 58.68 GB size.
-  provider: "custom:local"
-  default: hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL
+  # Lost with this move, stated plainly: the parent no longer runs offline, and
+  # the "local parent has no cloud bucket to starve" property is gone. Offline
+  # work now degrades through fallback_providers (below) instead of continuing
+  # at full strength.
+  provider: "custom:nvidia-nim"
+  default: nvidia/nemotron-3.5-super-vl-120b-a12b
+  # NVIDIA's model card: temperature 1.0, top_p 0.95.
   temperature: 1.0
-  top_p: 1.0
+  top_p: 0.95
 
 fallback_providers:
   # A 429 or an outage on the parent falls through to a different provider rather
-  # than stopping.
+  # than stopping. RE-SEQUENCED 2026-10-19 with the parent now on NVIDIA NIM:
+  # every link below sits on a DIFFERENT bucket from the parent, because a 429
+  # on nvidia-nim cannot be answered from nvidia-nim.
   #
-  # FALLBACK 1 -- added 2026-09-25, on request. NVIDIA NIM, cloud-hosted. This is
-  # NOT the laptop: an Unsloth UD-Q8_K_XL GGUF of this same model family was
-  # downloaded locally first, then explicitly redirected here once the target
-  # turned out to be a cloud box, not the laptop the `local` tier runs on. That
-  # download is UNCONNECTED to how this entry actually serves -- NIM
-  # serves its own hosted build of the model; it does not take an uploaded GGUF.
+  # The old fallback 1 (nvidia/nemotron-3-nano-omni-30b-a3b-reasoning on the same
+  # NIM key) is REMOVED from this chain: it shared the parent's key and bucket,
+  # so a rate-limit on the parent would have hit it too -- it answered nothing
+  # the parent could not. The id is still listed under providers.nvidia-nim for
+  # /model, just not routed.
   #
-  # SWAPPED 2026-09-27: the previous id here, nvidia/llama-3.3-nemotron-super-49b-v1.5,
-  # is confirmed DEAD -- HTTP 410 Gone, end-of-life 2026-08-26T09:00:00Z, hit live
-  # by a real Hermes session on this account. See the `nvidia-nim` provider entry
-  # above for the full writeup and the replacement's live-verification story;
-  # this fallback now points at the same nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
-  # id for the reason below.
-  #
-  # SAME BUCKET AS `nvidia-nim` ABOVE, ON PURPOSE OR NOT -- WORTH KNOWING EITHER
-  # WAY. This entry reuses NVIDIA_API_KEY and build.nvidia.com, the identical
-  # rate-limit bucket `delegation:` already spends on subagents. A fallback
-  # firing here now competes with in-flight subagent calls for the same ~40 RPM,
-  # where fallback 2 just below sits on a bucket nothing else touches. If that
-  # trade is unwanted, move this to its own credential or accept that a bad
-  # subagent fan-out can starve this fallback too.
-  #
-  # SAME MODEL AS `nvidia-nim` ABOVE, TOO -- subagents and fallback 1 are not
-  # diversified from each other, only by which failure each answers (the
-  # parent -- now local, going down or being slow -- vs. delegation routing).
-  # Re-verify both together with nim-preflight.sh; they will drift or die
-  # together.
-  - provider: custom
-    model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
-    base_url: https://integrate.api.nvidia.com/v1
-    key_env: NVIDIA_API_KEY
-  # FALLBACK 2 (was fallback 1 until fallback 1 above was added 2026-09-25).
-  # REVERTED to Qwen3.5-122B-A10B 2026-09-28, on request: DeepSeek removed
-  # globally, not just from the MoA block. Matches `or-fallback`'s own
-  # default_model above -- see that entry's comment for why this exact id.
+  # FALLBACK 1 -- OpenRouter, Qwen3.5-122B-A10B. Independent bucket, cloud speed.
+  # Matches `or-fallback`'s own default_model -- see that entry for why this id.
   - provider: custom
     model: qwen/qwen3.5-122b-a10b
     base_url: https://openrouter.ai/api/v1
     key_env: OPENROUTER_API_KEY
-  # Last resort, and the only entry that survives losing the network. Much smaller
-  # than anything above it; nothing can rate-limit it. Swapped from hermes3:8b to
-  # the same local model the `local` provider now runs, 2026-09-25.
+  # FALLBACK 2 -- ADDED 2026-10-19: the local 49B Nemotron GGUF, the previous
+  # parent. Keeps a full-strength tier alive when the network is down, so losing
+  # NIM no longer drops offline work straight to a 3B. No rate limit, no key.
+  # Needs the GGUF pulled (see providers.local) and the RAM/VRAM for it -- it is
+  # on the failure path, not the hot path, so it only has to load when called.
+  - provider: custom
+    model: hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL
+    base_url: http://127.0.0.1:11434/v1
+    api_key: "no-key-required"
+  # LAST RESORT, and the cheapest to run offline. Much smaller than anything above
+  # it; nothing can rate-limit it. Swapped from hermes3:8b to the same local model
+  # the `local` provider now runs, 2026-09-25.
   - provider: custom
     model: hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
     base_url: http://127.0.0.1:11434/v1
@@ -399,84 +468,112 @@ delegation:
   # either pasting a token into this file or having children authenticate as the
   # wrong account. Naming the provider resolves its key_env instead.
   #
-  # NIM is the children's bucket, not the parent's. Was Llama-3.3-Nemotron-Super-49B-v1.5
-  # (swapped from Nemotron-3-Super-120B-A12B 2026-09-25) -- that id is now confirmed
-  # DEAD, HTTP 410 as of 2026-08-26, caught live by a real Hermes session on this
-  # account; see the `nvidia-nim` provider entry above for the full story.
-  # Swapped 2026-09-27 to nvidia/nemotron-3-nano-omni-30b-a3b-reasoning, live-verified
-  # the same way -- reasoning-tuned, which is what delegation needs for multi-agent
-  # decomposition, even though it is a lower-active-compute MoE (~3B active of 30B
-  # total) than the dense 49B it replaces. Alive and reasoning-tuned beat
-  # well-specified and dead.
+  # SUBAGENTS NOW SHARE THE PARENT'S PROVIDER AND MODEL, on request (2026-10-19):
+  # nemotron-3.5-super-vl-120b-a12b is the only model this build routes inference
+  # to. Before this, subagents ran nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+  # on NIM as "the children's own bucket" while the parent sat on local Ollama;
+  # that separation vanished the moment the parent moved to NIM, and the CI block
+  # now enforces the replacement rule instead: a slot that shares the parent's
+  # provider must use the parent's exact model.
+  #
+  # The cost is real and named: parent and children draw one ~40 RPM bucket, so a
+  # fan-out of N children takes N/40ths of the parent's headroom. max_concurrent_children
+  # stays at 3 for that reason -- do not raise it without a second NIM key
+  # (credential_pool_strategies, fill_first).
   provider: "custom:nvidia-nim"
-  model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+  model: nvidia/nemotron-3.5-super-vl-120b-a12b
   max_concurrent_children: 3
-  # Children have their own bucket already. A chain back to the parent's provider
-  # would reintroduce exactly the drain this split exists to prevent.
+  # Still empty. A chain from a child back onto the parent's provider would burn
+  # the parent's bucket on a child's failure -- and now the provider is the same,
+  # so there is nothing different for it to fall back TO.
   fallback_providers: []
 
 # ---------------------------------------------------------------------------
 # MIXTURE OF AGENTS
 #
-# MoA costs AT LEAST two inference calls per turn: every reference model, then the
-# aggregator. This config's whole thesis is that requests are the scarce resource,
-# so the pool is kept to ONE reference model rather than the three or four MoA
-# implementations usually show.
+# HOW A MoA TURN ACTUALLY RUNS (hermes-agent docs, "Mixture of Agents", read
+# 2026-10-19): the AGGREGATOR is the ACTING model. It writes the reply, emits the
+# tool calls and runs EVERY iteration of the tool loop. The reference models only
+# ADVISE -- by default once per user turn (`fanout: user_turn`), with no tool
+# schemas and without the Hermes system prompt. This block used to say "at least
+# two calls per turn: every reference, then the aggregator", which understated
+# it: the aggregator is called once per iteration, the references once per turn.
 #
-# Reference and aggregator sit on DIFFERENT providers on purpose. Same-provider
-# MoA spends one bucket twice per turn and, worse, asks one model family to check
-# its own work — which is most of what MoA is supposed to prevent.
+# What that means for the one NIM bucket (~40 RPM, shared): on a MoA turn the
+# aggregator takes the PARENT'S place for the tool loop, so the extra NIM
+# requests over a plain turn are the reference calls -- one per user turn. Do not
+# set `fanout: per_iteration` here: it re-runs the reference on every tool step.
+#
+# SAME PROVIDER NOW, DIFFERENT MODEL. The old rule here was "reference and
+# aggregator on DIFFERENT providers". That is traded away on request
+# (2026-10-19): both sit on custom:nvidia-nim. What CI enforces instead is that
+# the aggregator is a different MODEL from every reference, because a MoA whose
+# aggregator is its own reference checks nothing. Honest limit: both are Nemotron
+# 3 family (Super VL 120B-A12B, Ultra 550B-A55B), so this is a bigger-model
+# check, not an independent-lineage one.
+#
+# TWO SHAPES, KEPT IN STEP. Current Hermes docs put reference_models and
+# aggregator INSIDE each preset (moa.presets.<name>), chosen by
+# moa.default_preset. This file used the flat moa.reference_models /
+# moa.aggregator keys, and its preset carried NO aggregator -- on the documented
+# schema that preset has no acting model. Which shape the installed Hermes reads
+# is not confirmed from here, so BOTH are written and CI fails if they disagree.
+# Drop the flat pair once `hermes moa list` exists on the install (that command
+# only exists on the preset schema).
 # ---------------------------------------------------------------------------
 moa:
+  default_preset: default
   reference_models:
-    # REVERTED off hf-router/DeepSeek 2026-09-28, on request: DeepSeek removed
-    # globally from this build. Moved to the same NVIDIA NIM id subagents,
-    # fallback 1 and or-fallback's own history already use elsewhere in this
-    # file -- live-verified the same way (see the `nvidia-nim` provider entry).
-    # This is also WHY the aggregator below moved off nvidia-nim to local: the
-    # rule two comments up ("reference and aggregator sit on DIFFERENT
-    # providers on purpose") would otherwise be broken by putting both on the
-    # same nvidia-nim bucket running the same model against itself.
+    # Reference model is nemotron-3.5-super-vl-120b-a12b as of 2026-10-19, on
+    # request -- the same id as the parent, subagents and vision (see the
+    # `nvidia-nim` provider entry). Before that: nano-omni (2026-09-27), and
+    # before that DeepSeek on the now-removed hf-router (reverted 2026-09-28).
     - provider: "custom:nvidia-nim"
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: nvidia/nemotron-3.5-super-vl-120b-a12b
       enabled: true
   aggregator:
-    # DELIBERATELY NOT anthropic-direct, EVEN THOUGH IT NOW EXISTS.
+    # NVIDIA NEMOTRON 3 ULTRA 550B-A55B, 2026-10-19, on request ("change the MOA
+    # Aggregator to the Nvidia Nemotron 226 to 250B or 550B"). Why this id, and
+    # why not the 226-250B half of the ask, is in the `nvidia-nim` provider entry
+    # beside the live catalog check. Before today: the local 49B Nemotron GGUF
+    # (2026-09-28), which is now fallback 2 only.
     #
-    # This comment used to say Claude was "not inside the Hermes routing table."
-    # That stopped being true the moment `anthropic-direct` was added -- Claude
-    # Sonnet 5 IS reachable from Hermes now, on request, via /model. This slot
-    # still does not use it, and the ORIGINAL reasoning still holds on its own
-    # terms, so it is restated rather than deleted:
+    # WHAT YOU GIVE UP vs the 120B, stated plainly:
+    #   - TEXT ONLY. Super VL takes images and video; Ultra does not. On a MoA turn
+    #     the acting model is this one, so an attached image reaches it as a file
+    #     path, not pixels (Hermes' MCP docs: "Text-only models get the path
+    #     only"). `vision_analyze` still routes to Super VL via auxiliary.vision.
+    #   - ~4.6x the active parameters per token (55B vs 12B), so expect slower,
+    #     costlier calls. Ultra reasons by default, which adds latency; Hermes has a
+    #     per-slot `reasoning_effort`, but how it maps onto NIM's `enable_thinking`
+    #     / `medium_effort` is UNVERIFIED, so it is deliberately not set here.
+    #   - No local copy: 550B needs ~4x B200 or 8x H100 to self-host. The offline
+    #     tier is the 49B (fallback 2), not this.
     #
-    #   cost — every MoA turn would carry a metered $2/$10-per-MTok call on top
-    #   of whatever the reference model already costs, on a config whose whole
-    #   thesis is that requests (not money) are the scarce resource for the rest
-    #   of the stack. That thesis does not apply to a metered API tier the same
-    #   way, which is exactly why this tier was kept OUT of anything automatic.
+    # STILL NOT anthropic-direct, and the original reasoning still holds: every
+    # MoA turn would carry a metered $2/$10-per-MTok aggregator on a config whose
+    # thesis is that requests (not money) are the scarce resource. If you want
+    # Claude here it is a one-line deliberate edit (provider
+    # "custom:anthropic-direct", model claude-sonnet-5) -- in BOTH shapes below.
     #
-    # If you want Claude as the aggregator, that is a one-line, deliberate edit
-    # (provider: "custom:anthropic-direct", model: claude-sonnet-5) — not this
-    # comment's job to make for you.
-    #
-    # MOVED TO custom:local 2026-09-28, on request: keep this exact 49B Nemotron
-    # as the aggregator -- it is a standalone model in this build, not part of
-    # the docs/moa-b/BUILD.md swarm roster, and not reused across another role
-    # the way BUILD.md's Generator/Reviewer share one CodeLlama-13B file. Its
-    # NVIDIA-hosted id (nvidia/llama-3.3-nemotron-super-49b-v1.5) is confirmed
-    # DEAD (HTTP 410, EOL 2026-08-26), so it serves from the same Unsloth
-    # UD-Q8_K_XL GGUF referenced in the `local` provider's comment instead --
-    # requires that model actually pulled and running in Ollama, not just
-    # declared here. This also frees nvidia-nim for the reference model above
-    # without the two sharing a bucket.
-    provider: "custom:local"
-    model: hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL
+    # TO MOVE THIS OFF THE NIM BUCKET: OpenRouter serves the same id
+    # (`nvidia/nemotron-3-ultra-550b-a55b`, $0.50/$2.20 per MTok, 262K paid).
+    # Set provider "custom:or-fallback" in BOTH shapes and add the id to that
+    # provider's `models:` list -- CI rejects an aggregator id its provider does
+    # not list, since discover_models:false turns a wrong id into a silent
+    # fallback to the main model, not an error.
+    provider: "custom:nvidia-nim"
+    model: nvidia/nemotron-3-ultra-550b-a55b
   presets:
     default:
+      enabled: true
       reference_models:
         - provider: "custom:nvidia-nim"
-          model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+          model: nvidia/nemotron-3.5-super-vl-120b-a12b
           enabled: true
+      aggregator:
+        provider: "custom:nvidia-nim"
+        model: nvidia/nemotron-3-ultra-550b-a55b
 
 # ---------------------------------------------------------------------------
 # RESEARCH BROWSER
@@ -526,11 +623,12 @@ web:
 # invisible to each other. CI asserts this entry stays present.
 #
 # Switching mid-session, with the names as they now stand:
-#   /model custom:local:hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL   (the parent)
-#   /model custom:nvidia-nim:nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+#   /model custom:nvidia-nim:nvidia/nemotron-3.5-super-vl-120b-a12b                      (the parent)
+#   /model custom:nvidia-nim:nvidia/nemotron-3-ultra-550b-a55b                           (the MoA aggregator; text-only)
+#   /model custom:nvidia-nim:nvidia/nemotron-3-nano-omni-30b-a3b-reasoning               (listed, unrouted)
 #   /model custom:or-fallback:qwen/qwen3.5-122b-a10b
+#   /model custom:local:hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL   (fallback 2, offline)
 #   /model custom:local:hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
-#   /model custom:local:hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL
 #   /model custom:anthropic-direct:claude-sonnet-5       (needs ANTHROPIC_API_KEY)
 # ---------------------------------------------------------------------------
 excluded_providers:
@@ -788,15 +886,29 @@ auxiliary:
   web_extract:
     provider: "custom:or-fallback"
     model: qwen/qwen3.5-122b-a10b
-  # VISION: MOVED TO NVIDIA NIM 2026-09-27, on request -- a purpose-built
-  # vision-language model on the SAME provider/key subagents and fallback 1
-  # already use, rather than DeepSeek-V4.1-Flash doing vision as a side
-  # capability. nvidia/ising-calibration-1.5-31b is an NVIDIA-authored
-  # image-text-to-text model; its NIM API example (integrate.api.nvidia.com,
-  # OpenAI-style `messages[].content` with `image_url` + `text` blocks) was
-  # pulled directly from its build.nvidia.com product page, not fabricated --
-  # but like the 49B id above, build.nvidia.com is egress-blocked from this
-  # sandbox, so it was NOT live-tested from here. Self-verify before trusting:
+  # VISION: MOVED TO nemotron-3.5-super-vl-120b-a12b 2026-10-19, on request. The
+  # "VL" in that id is the point: it is a vision-language model (image, video and
+  # text in), so the parent can see and this slot no longer needs a separate
+  # image-only model. That also removes the one unverified id this slot carried
+  # (nvidia/ising-calibration-1.5-31b below was never live-tested from this
+  # sandbox -- build.nvidia.com is egress-blocked here). The Super VL id IS
+  # live-verified (see the `nvidia-nim` provider entry).
+  #
+  # STILL PINNED, NEVER `auto`, and for the same reason as before even though the
+  # parent can now see: `auto` means "use the main model", so an image task would
+  # silently follow every future parent change -- including to one with no vision
+  # encoder -- and report a bad answer rather than a missing capability.
+  #
+  # This slot shares the parent's provider and model on purpose; the CI block
+  # allows exactly that, and nothing else on the parent's provider. The other
+  # auxiliary slots stay OFF the NIM bucket (see compression/web_extract on
+  # or-fallback and the five 3B local slots below): they are frequent, and each
+  # one is a request taken from the parent's ~40 RPM.
+  #
+  # PREVIOUS (2026-09-27 - 2026-10-19): nvidia/ising-calibration-1.5-31b on this
+  # same provider, an NVIDIA-authored image-text-to-text model; its NIM API
+  # example (OpenAI-style `messages[].content` with `image_url` + `text` blocks)
+  # came from its build.nvidia.com product page. To check it is still served:
   #     bash scripts/nim-preflight.sh --list | grep -i ising-calibration
   #
   # HISTORY, kept because the reasoning still applies to any future vision
@@ -816,7 +928,7 @@ auxiliary:
   # network.
   vision:
     provider: "custom:nvidia-nim"
-    model: nvidia/ising-calibration-1.5-31b
+    model: nvidia/nemotron-3.5-super-vl-120b-a12b
   title_generation:
     provider: "custom:local"
     model: hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
@@ -892,8 +1004,31 @@ compression:
     # magnitude below DeepSeek's 262144 -- there is much less room to defer
     # compaction into, so less headroom is claimed here on purpose. Re-tune
     # once `providers.local.context_length` itself gets re-tuned for the 49B
-    # (see that provider's own comment -- not yet done).
+    # (see that provider's own comment -- not yet done). That key is kept: the
+    # 49B is still fallback 2 (it was the MoA aggregator until 2026-10-19), and
+    # a model that compacts at the global 0.50 default is the quiet failure this
+    # block exists to stop.
     "Nemotron-Super-49B-v1_5": 0.65
+    # PARENT, 2026-10-19: nemotron-3.5-super-vl-120b-a12b on NIM. The CI check
+    # resolves a key against the parent id by case-insensitive substring, longest
+    # key wins, so this one has to be a substring of the parent id.
+    #
+    # 0.70: the parent is a cloud model again, and the trade from the DeepSeek era
+    # applies again -- every compaction costs a request out of a shared ~40 RPM
+    # bucket, and it rewrites history, which resets any provider-side prompt cache.
+    # Held below the 0.80 ceiling CI enforces. Computed against the CONFIGURED
+    # window (providers.nvidia-nim.context_length = 131072, not re-measured), so
+    # 0.70 is ~91.7k tokens before the first compaction. Re-tune once that number
+    # is measured with scripts/nim-preflight.sh.
+    "nemotron-3.5-super-vl": 0.70
+    # MOA AGGREGATOR, 2026-10-19: nemotron-3-ultra-550b-a55b. On a MoA turn the
+    # aggregator is the ACTING model for the whole tool loop (Hermes docs), so it
+    # is the model whose window compacts -- a key matching only the parent would
+    # leave it on the global 0.50 default. Same reasoning and same number as the
+    # primary: same bucket, same configured window (providers.nvidia-nim.
+    # context_length = 131072, not measured for this model), and CI requires the
+    # key, so removing it fails the build instead of passing silently.
+    "nemotron-3-ultra": 0.70
   target_ratio: 0.20
   tail_mode: lean
   protect_last_n: 20
@@ -962,7 +1097,8 @@ prompt_caching:
 # is to warn rather than stop. That is right at a terminal, where a human sees the
 # warning. It is wrong for anything this build delegates -- subagents on NIM, Codex
 # runs through the MCP shim -- because nobody is watching and a loop burns the
-# children's rate-limit bucket until the task times out.
+# shared NIM rate-limit bucket (the parent's too, since 2026-10-19) until the
+# task times out.
 #
 # `non_interactive_hard_stop_enabled` is the key that matters here and it is ALREADY
 # true upstream; it is written out explicitly rather than inherited so that a future

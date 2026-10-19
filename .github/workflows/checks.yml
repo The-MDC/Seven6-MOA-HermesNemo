@@ -172,11 +172,26 @@ jobs:
           #
           # Express the requirement itself and nothing narrower: a different
           # provider from the parent, and no chain back to it.
+          #
+          # AMENDED 2026-10-19, on request ("the nemotron 3.5 Super VL should be the
+          # only gateway and inference"): the parent is now nvidia-nim, and so are
+          # subagents, the MoA reference and vision. Separate buckets are traded away
+          # on purpose, so "different provider from the parent" can no longer be the
+          # rule. What replaces it is narrower and still fails loudly: a slot MAY share
+          # the parent's provider only if it uses the parent's EXACT model. That
+          # blocks the real regression -- a second, stray model id (a nano, an old
+          # 49B, a typo) quietly spending the primary's RPM bucket -- without
+          # hardcoding any model id here, so a future primary swap does not leave
+          # this assertion guarding a retired name.
           deleg = d["delegation"]
           parent_provider = d["model"]["provider"]
+          parent_default = d["model"]["default"]
           assert deleg.get("provider"), "subagents must name a provider"
-          assert deleg["provider"] != parent_provider, \
-              "subagents must not share the parent's provider"
+          if deleg["provider"] == parent_provider:
+              assert deleg.get("model") == parent_default, \
+                  f"subagents share the parent's provider ({parent_provider}) but run " \
+                  f"{deleg.get('model')!r}, not the parent's {parent_default!r} -- a " \
+                  f"second model on the primary's bucket is how its RPM gets spent unseen"
           assert deleg["fallback_providers"] == [], \
               "subagents must have no fallback chain back onto the parent"
 
@@ -298,9 +313,35 @@ jobs:
               # just not the failure this specific assertion exists to catch, and
               # not a reason to weaken it for every other provider too.
               if prov != "custom:local":
-                  assert prov != parent_provider, \
-                      f"auxiliary.{task} points at the parent provider ({prov}) — that defeats the split"
+                  if prov == parent_provider:
+                      # AMENDED 2026-10-19 with the single-primary layout: ONE slot
+                      # may ride the parent's provider -- `vision`, because the
+                      # primary is a vision-language model and an image-only second
+                      # model is exactly what was retired -- and only on the
+                      # parent's exact model. Every other slot (title, approval,
+                      # compression, ...) is a frequent side job; each one on this
+                      # provider is a request taken from the parent's RPM bucket.
+                      assert task == "vision", \
+                          f"auxiliary.{task} points at the parent provider ({prov}) — only " \
+                          f"`vision` may share it; any other slot defeats the split"
+                      assert cfg.get("model") == parent_default, \
+                          f"auxiliary.{task} shares the parent provider but runs " \
+                          f"{cfg.get('model')!r}, not the parent's {parent_default!r}"
               assert cfg.get("model"), f"auxiliary.{task} names a provider but no model"
+
+          # A fallback can only answer a failure of the parent if it does not share
+          # the parent's endpoint. With the parent on a cloud bucket this is the
+          # check that matters: a 429 on nvidia-nim cannot be answered from
+          # nvidia-nim, and the old chain led with exactly that.
+          parent_name = parent_provider.split(":", 1)[1] if parent_provider.startswith("custom:") else parent_provider
+          parent_host = urlparse(providers[parent_name]["api"]).netloc if parent_name in providers else None
+          fallbacks = d.get("fallback_providers") or []
+          assert fallbacks, "fallback_providers: is empty — a 429 on the parent would stop the session"
+          for i, fb in enumerate(fallbacks):
+              fb_host = urlparse(fb.get("base_url", "")).netloc
+              assert not (parent_host and fb_host == parent_host), \
+                  f"fallback_providers[{i}] ({fb.get('model')}) is on the parent's endpoint " \
+                  f"({parent_host}) — it shares the bucket that just failed"
 
           # Every provider REFERENCE must resolve to something that can actually
           # serve. The exclusion check above compares excluded_providers against the
@@ -322,11 +363,16 @@ jobs:
               yield "delegation.provider", deleg["provider"]
               for task_, cfg_ in aux.items():
                   yield f"auxiliary.{task_}.provider", cfg_.get("provider")
-              moa = d.get("moa") or {}
-              for i, ref_ in enumerate(moa.get("reference_models") or []):
+              moa_ = d.get("moa") or {}
+              for i, ref_ in enumerate(moa_.get("reference_models") or []):
                   yield f"moa.reference_models[{i}].provider", (ref_ or {}).get("provider")
-              if moa.get("aggregator"):
-                  yield "moa.aggregator.provider", moa["aggregator"].get("provider")
+              if moa_.get("aggregator"):
+                  yield "moa.aggregator.provider", moa_["aggregator"].get("provider")
+              for pn_, pr_ in (moa_.get("presets") or {}).items():
+                  for i, ref_ in enumerate((pr_ or {}).get("reference_models") or []):
+                      yield f"moa.presets.{pn_}.reference_models[{i}].provider", (ref_ or {}).get("provider")
+                  if (pr_ or {}).get("aggregator"):
+                      yield f"moa.presets.{pn_}.aggregator.provider", pr_["aggregator"].get("provider")
 
           for where, ref in provider_refs():
               if not ref or ref == "auto":
@@ -371,6 +417,61 @@ jobs:
               "a parent threshold above 0.80 risks provider-proven overflow, which costs " \
               "a rejected request plus recovery -- worse than the compaction it avoids"
 
+          # MIXTURE OF AGENTS. On a MoA turn the AGGREGATOR is the ACTING model: it
+          # writes the reply and runs every tool-loop iteration (hermes-agent docs,
+          # "Mixture of Agents", read 2026-10-19). Four things go wrong here without
+          # an error, and each one is asserted below:
+          #   1. The two config shapes -- flat moa.aggregator and
+          #      moa.presets.<default_preset>.aggregator -- drift apart, and the one
+          #      the installed Hermes does NOT read is the one a person edits. This
+          #      file's preset once carried no aggregator at all.
+          #   2. The aggregator is the same provider+model as a reference, so MoA
+          #      checks its own work and nothing else. (The old rule here was
+          #      "different PROVIDER"; both roles now share NIM on request, so the
+          #      rule that can still hold is "different MODEL".)
+          #   3. The aggregator id is not in its provider's models: list. With
+          #      discover_models:false a wrong id does not error -- it resolves to
+          #      the main model, so MoA would quietly aggregate with the parent.
+          #   4. The aggregator, being the acting model, has no raised compaction
+          #      threshold, so it compacts at the global default.
+          moa = d.get("moa") or {}
+          moa_preset_name = moa.get("default_preset", "default")
+          moa_preset = (moa.get("presets") or {}).get(moa_preset_name)
+          assert moa_preset, \
+              f"moa.default_preset names '{moa_preset_name}', which is not under moa.presets"
+          flat_agg = moa.get("aggregator") or {}
+          preset_agg = moa_preset.get("aggregator") or {}
+          assert flat_agg.get("model") and preset_agg.get("model"), \
+              f"moa needs an aggregator in BOTH shapes: moa.aggregator and " \
+              f"moa.presets.{moa_preset_name}.aggregator (a preset without one has no acting model)"
+          pm = lambda s: (s.get("provider"), s.get("model"))
+          assert pm(flat_agg) == pm(preset_agg), \
+              f"moa.aggregator {pm(flat_agg)} and moa.presets.{moa_preset_name}.aggregator " \
+              f"{pm(preset_agg)} disagree -- whichever shape Hermes does not read is stale"
+          flat_refs = [pm(r) for r in (moa.get("reference_models") or [])]
+          preset_refs = [pm(r) for r in (moa_preset.get("reference_models") or [])]
+          assert flat_refs and flat_refs == preset_refs, \
+              f"moa.reference_models {flat_refs} and moa.presets.{moa_preset_name}." \
+              f"reference_models {preset_refs} disagree (or are empty)"
+          assert pm(preset_agg) not in preset_refs, \
+              f"moa aggregator {pm(preset_agg)} is also a reference -- MoA would check " \
+              f"its own work; the aggregator must be a different model"
+          agg_provider, agg_model = preset_agg["provider"], preset_agg["model"]
+          if agg_provider.startswith("custom:"):
+              agg_listed = (providers.get(agg_provider.split(":", 1)[1]) or {}).get("models") or []
+              assert agg_model in agg_listed, \
+                  f"moa aggregator {agg_model!r} is not in providers.{agg_provider.split(':', 1)[1]}.models " \
+                  f"-- discover_models:false means a wrong id silently resolves to the main model"
+          agg_matched = {k: v for k, v in thresholds.items() if k.lower() in agg_model.lower()}
+          assert agg_matched, \
+              f"compression.model_thresholds has no key matching the MoA aggregator " \
+              f"({agg_model}) -- it is the ACTING model on a MoA turn and would compact " \
+              f"at the global default"
+          agg_threshold = agg_matched[max(agg_matched, key=len)]
+          assert comp.get("threshold", 0.50) < agg_threshold <= 0.80, \
+              f"the MoA aggregator's compaction threshold ({agg_threshold}) must sit above the " \
+              f"global default and at or below 0.80, for the same reasons as the parent's"
+
           # Rotating a credential pool discards the provider-side prompt cache, and
           # Kimi-K3 carries a large always-thinking prefix. round_robin would pay
           # that on every selection.
@@ -399,13 +500,17 @@ jobs:
           print("hermes config: OK")
           print("  primary   ", d["model"]["provider"], d["model"]["default"])
           print("  subagents ", deleg["provider"], deleg["model"])
+          print("  moa       ", "refs", [m for _, m in preset_refs], "-> aggregator",
+                preset_agg["provider"], agg_model, "| compress@" + str(agg_threshold))
           print("  buckets   ", ", ".join(sorted(hosts)))
           print("  web       ", web.get("search_backend"), "+", web.get("extract_backend"))
           hosted_used = sorted(n for n in mcp if n in HOSTED_MCP_ALLOWED)
           print("  mcp       ", len(mcp), "server(s),",
                 (f"{len(hosted_used)} hosted ({', '.join(hosted_used)})"
                  if hosted_used else "all loopback/local") + ", all tool-filtered")
-          print("  auxiliary ", len(aux), "slot(s) off the parent bucket ->",
+          shares = sorted(t for t, c in aux.items() if c.get("provider") == parent_provider)
+          print("  auxiliary ", len(aux), "slot(s);", (", ".join(shares) or "none"),
+                "shares the primary, the rest off its bucket ->",
                 sorted({c["provider"] for c in aux.values()}))
           print("  throughput", "execute_code:" + str(ce.get("mode")),
                 "| parent compress@" + str(parent_threshold),

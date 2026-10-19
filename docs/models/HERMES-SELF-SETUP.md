@@ -36,7 +36,7 @@ else to hand-start before Hermes can take over.
 ## The prompt
 
 ```text
-You are running the Hermes-Codex build's own takeover runbook on this machine.
+You are running the Seven6-Hermes-MOA build's own takeover runbook on this machine.
 
 Read these two skills before doing anything, and follow them:
   operations/local-desktop          how to use terminal, process and execute_code here

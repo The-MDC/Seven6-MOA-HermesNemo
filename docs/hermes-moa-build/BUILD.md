@@ -1,4 +1,11 @@
-# Hermes-MOA-B Build Plan
+# Hermes-MOA-Build — Build Plan
+
+> **Status, 2026-10-19.** This is the local-model swarm plan for the `seven6moa`
+> Hermes profile. It is a design document, not the routing that `configs/hermes/config.yaml`
+> applies: that file routes inference to NVIDIA Nemotron 3.5 Super VL
+> (`nvidia/nemotron-3.5-super-vl-120b-a12b`) as the only primary model, with
+> OpenRouter and local Ollama as failover. Nothing below is wired into the config.
+> The roster is left as written; reconcile it deliberately before adopting it.
 
 ## 1. Overview
 Create a **Mixture‑of‑Agents (MOA)** inside Hermes that:
@@ -24,8 +31,8 @@ model above is publicly hosted on Hugging Face and loaded locally via `hermes mo
 ## 2.1 Profile & Workspace Setup
 ```bash
 # Create a dedicated profile (isolated config & memory)
-hermes profile create codex-moa \
-  --workspace_path ~/.hermes/profiles/codex-moa \
+hermes profile create seven6moa \
+  --workspace_path ~/.hermes/profiles/seven6moa \
   --initial_status "running"
 
 # Set memory limit — see §5 for the real per-model footprint this must cover
@@ -159,7 +166,7 @@ continuously.
 5. **Hermes‑MCP** (or a custom webhook) executes the script on the chosen exchange.
 
 ## 9. Rollback / Cleanup
-- To revert, simply delete the profile directory: `rm -rf ~/.hermes/profiles/codex-moa`.
+- To revert, simply delete the profile directory: `rm -rf ~/.hermes/profiles/seven6moa`.
 - Remove attached artifacts with `kanban_attachments` if needed.
 
 ## 10. Possible Future Enhancements (unverified, not yet integrated)
