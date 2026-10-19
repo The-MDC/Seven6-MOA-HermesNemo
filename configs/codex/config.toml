@@ -42,9 +42,7 @@ sandbox_mode = "workspace-write"
 [sandbox_workspace_write]
 network_access = false
 
-# Matches Kimi-K3's `reasoning_effort: max` on the Hermes side of this repo's
-# config: a delegated coding task should get Codex's best reasoning, not its
-# fastest. Codex has its own separate rate limit (the ChatGPT 5-hour window,
+# A delegated coding task should get Codex's best reasoning, not its fastest. Codex has its own separate rate limit (the ChatGPT 5-hour window,
 # or metered API billing) from anything in configs/hermes/config.yaml — see
 # "Money, requests, tokens" in codex-handoff.md.
 model_reasoning_effort = "high"

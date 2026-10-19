@@ -9,7 +9,7 @@ metadata:
   hermes:
     tags: [REST, API, Pagination, Versioning, HTTP]
     category: software-development
-    related_skills: [backend-patterns, frontend-design, mcp-builder, mcp-server-patterns, verification-loop]
+    related_skills: [backend-patterns, mcp-builder, mcp-server-patterns, verification-loop]
 ---
 
 # API Design Patterns

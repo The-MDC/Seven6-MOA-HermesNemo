@@ -1,36 +1,13 @@
 # Harness checks.
 #
-# WHY THIS EXISTS
-#     Two reasons, and the second one is not obvious.
+# This workflow gates what this repo ships: syntax on every script, the Hermes config's
+# routing invariants (which fail silently on the desktop rather than erroring), the
+# capability registry against disk, doc references, and legacy-name regressions.
 #
-#     1. It gates the checks this repo ships: syntax on every script, and the Hermes
-#        config's routing invariants, which fail silently on the desktop rather than
-#        erroring. A canonical-numbers gate also lived here and was removed with the
-#        owner's explicit approval — the numbers remain canonical and CLAUDE.md
-#        remains their declaration, but agreement is now a human review step in
-#        .github/PULL_REQUEST_TEMPLATE.md rather than a CI failure. The gate scanned
-#        every restatement in the tree, so an unrelated PR that merely reworded a
-#        sentence near a number could paint CI red.
+# It deliberately does NOT gate on scripts/repo-doctor.sh. The doctor checks the
+# MACHINE (toolchain, network egress, whether `hermes` is on PATH), and a CI runner is
+# not the machine the build runs on. Run it locally.
 #
-#     2. It gives CodeQL's `actions` extractor something to extract. Code scanning
-#        default setup has the `actions` language enabled for this repository, and on a
-#        pull request the analysis is diff-informed: it looks at the files this PR
-#        changes, not the whole tree. This PR's first commit added .github/ content that
-#        contains no workflow — a PR template — so the actions extractor had nothing in
-#        the diff range it could parse, and "Analyze (actions)" failed with:
-#            "CodeQL could not process any code written in GitHub Actions."
-#            "CodeQL job status was configuration error."
-#        The base branch passes the same job because its diffs do touch
-#        .github/workflows/agentic-compile.yml. Putting a real workflow in this PR's own
-#        diff is the fix.
-#
-# Deliberately does NOT gate on scripts/repo-doctor.sh yet. The doctor currently
-# exits 1 on a real, pre-existing bug — .claude/hooks/hooks.json references 15 scripts
-# under .cursor/hooks/, a directory that does not exist, so none of those hooks have
-# ever run. Gating on it now would paint CI red for a defect this workflow did not
-# introduce and cannot fix. Masking it with continue-on-error would be worse: a check
-# that cannot fail is not a check. It becomes a gate in the PR that repairs the hooks.
-
 name: checks
 
 on:
@@ -610,3 +587,25 @@ jobs:
       # future session adding a repo-wide content gate should scope it to the files
       # that can actually carry the thing being checked. The port script's own scrub
       # assertion is scoped that way: it reads only the tree it just wrote.
+
+      # The build's display name is "Seven6-MOA [Nemo-Hermes]". Earlier names kept
+      # reappearing in prose, so this fails when one comes back. Case-sensitive on
+      # purpose: the lowercase repo slug (seven6-hermes-moa) and the Hermes profile id
+      # (seven6moa) are machine identifiers that must stay. This file is excluded
+      # because it has to spell the patterns.
+      - name: No legacy names
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in README.md CLAUDE.md .hermes.md; do
+            grep -q 'Seven6-MOA \[Nemo-Hermes\]' "$f" || { echo "MISSING display name in $f"; exit 1; }
+          done
+          hits=$(git ls-files -z | grep -zv '^\.github/workflows/checks\.yml$' \
+            | xargs -0 grep -nIE 'Seven6-Hermes-MOA|Hermes-MOA-Build|Seven6MOA|hermes-codex-build|Hermes-MOA-Nemotron|hermes-moa-build' || true)
+          if [ -n "$hits" ]; then echo "$hits"; echo "legacy name(s) found"; exit 1; fi
+          # Gateways and models that were removed from this build. `deepseek` itself stays
+          # legitimate: it is an excluded provider key in config.yaml, not a route.
+          gone=$(git ls-files -z | grep -zv '^\.github/workflows/checks\.yml$' \
+            | xargs -0 grep -nIiE 'hf-router|local-vl|hermes3:8b|kimi-k3|ising-calibration|deepseek-v4' || true)
+          if [ -n "$gone" ]; then echo "$gone"; echo "removed gateway/model name(s) found"; exit 1; fi
+          echo "no legacy names"

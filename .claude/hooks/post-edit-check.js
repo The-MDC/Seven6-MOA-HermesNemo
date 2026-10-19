@@ -3,15 +3,11 @@
  * post-edit-check.js — PostToolUse on Write|Edit.
  *
  * WHY THIS EXISTS
- *     `.claude/hooks/hooks.json` asked for an `afterFileEdit` hook described as
- *     "Auto-format, TypeScript check, console.log warning", pointing at
- *     `.cursor/hooks/after-file-edit.js`. There is no `.cursor/` directory in this
- *     repository and there never has been, and `afterFileEdit` is a Cursor event
- *     name that Claude Code does not emit. The behaviour was specified twice —
- *     once there, once in `.claude/rules/typescript-hooks.md` — and implemented
- *     nowhere. This is the implementation, against events Claude Code really fires.
+ *     `.claude/rules/typescript-hooks.md` specifies Prettier auto-format, a TypeScript
+ *     check and a console.log warning after edits. This implements it against events
+ *     Claude Code really fires.
  *
- * THE THREE CHECKS, IN ORDER OF RELIABILITY
+ *THE THREE CHECKS, IN ORDER OF RELIABILITY
  *     1. console.log scan   — pure JS, zero dependencies, always runs.
  *     2. Prettier           — only if a LOCAL prettier binary exists.
  *     3. tsc --noEmit       — only if a LOCAL tsc and a tsconfig.json both exist.

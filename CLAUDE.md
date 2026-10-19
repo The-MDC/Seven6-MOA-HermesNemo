@@ -1,4 +1,4 @@
-# Seven6-Hermes-MOA — Claude Code context
+# Seven6-MOA [Nemo-Hermes] — Claude Code context
 
 ## What this repo is
 
@@ -61,15 +61,11 @@ asked for, because a forum report says the hosted endpoint once did not.
 NIM key. The CI block enforces the replacement rule: a slot may share the parent's
 provider only on the parent's exact model, only `vision` among the auxiliaries may,
 and every `fallback_providers` link must sit on a different endpoint from the
-parent, because a 429 on NIM cannot be answered from NIM. The old fallback 1
-(nano-omni on the same NIM key) was removed from the chain for that reason.
+parent, because a 429 on NIM cannot be answered from NIM.
 
-`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` is still in the NIM picker and
-routed nowhere. DeepSeek and `hf-router` stay removed (2026-09-28); `local-vl` and
-hermes3:8b stay removed (2026-09-25). `nvidia/llama-3.3-nemotron-super-49b-v1.5` is
-dead (HTTP 410, end-of-life 2026-08-26), which a "triangulated against three
-resellers" check missed and `bash scripts/nim-preflight.sh --list | grep -i
-nemotron` would have caught. Run that after any NVIDIA model swap.
+`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` is in the NIM picker and routed
+nowhere. A retired NIM id answers HTTP 410, not a config error, so run
+`bash scripts/nim-preflight.sh --list | grep -i nemotron` after any NVIDIA model swap.
 
 Three rules that have each cost a session here:
 
@@ -139,12 +135,12 @@ before trusting it.
 
 ## Skills and commands
 
-Skills live in `.claude/skills/` by domain: marketing, sales, product, engineering,
-data, operations, legal, finance, productivity, cowork, ecc.
+Skills live in `.claude/skills/` by domain: engineering, operations, ecc. The current
+counts come from `python3 scripts/check-capabilities.py`, never from prose.
 
 Commands live in `.claude/commands/`:
-`/orchestrate` `/quality-gate` `/harness-audit` `/learn` `/evolve` `/skill-create`
-`/model-route` `/plan` `/security` `/checkpoint` `/doctor` `/market-brief`
+`/orchestrate` `/quality-gate` `/learn` `/skill-create` `/plan` `/security`
+`/checkpoint` `/doctor`
 
 ## Hooks
 
@@ -157,7 +153,5 @@ Wired in `.claude/settings.json` — the only file Claude Code reads hooks from.
 - `pre-bash-guard.js` — `PreToolUse` / `Bash` — blocks `--no-verify` git hook bypass (the only blocking hook)
 - `stop-audit.js` — `Stop` — console.log sweep across changed files
 
-**Removed 2026-10-19**: the four unwired forwarders (`session-start.js`, `session-end.js`,
-`pre-compact.js`, `stop.js`). They pointed at Cursor hooks that were never in this repo.
-`.claude/hooks/hooks.json` was likewise a Cursor config and is gone; Claude Code never
-read it. See `.claude/hooks/README.md`.
+Nothing else is wired. Claude Code reads hooks only from `.claude/settings.json`. See
+`.claude/hooks/README.md`.

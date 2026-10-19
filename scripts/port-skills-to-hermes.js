@@ -134,14 +134,10 @@ const SOURCE_ROOTS = [
  */
 const INCLUDE = {
   // --- blockchain: Hermes ships only evm / hyperliquid / solana -------------
-  'solidity-foundry':     { category: 'blockchain', tags: ['Solidity', 'Foundry', 'Smart-Contracts', 'EVM', 'Testing', 'Gas'] },
-  'alchemy-api':          { category: 'blockchain', tags: ['Alchemy', 'RPC', 'NFT', 'Tokens', 'Base', 'Arbitrum', 'Solana'] },
-  'agentic-gateway':      { category: 'blockchain', tags: ['x402', 'MPP', 'SIWE', 'SIWS', 'Payments', 'Web3', 'Agent-Auth'] },
 
   // --- software-development -------------------------------------------------
   'api-design':           { category: 'software-development', tags: ['REST', 'API', 'Pagination', 'Versioning', 'HTTP'] },
   'backend-patterns':     { category: 'software-development', tags: ['Backend', 'Hono', 'Node', 'Caching', 'Repository-Pattern'] },
-  'frontend-design':      { category: 'software-development', tags: ['Frontend', 'UI', 'Design', 'CSS', 'Layout'] },
   'mcp-builder':          { category: 'software-development', tags: ['MCP', 'Tools', 'FastMCP', 'Integration'] },
   'mcp-server-patterns':  { category: 'software-development', tags: ['MCP', 'TypeScript', 'Zod', 'stdio', 'HTTP'] },
   'verification-loop':    { category: 'software-development', tags: ['Verification', 'Quality-Gate', 'CI', 'Testing'] },
@@ -155,25 +151,14 @@ const INCLUDE = {
 
   // --- research -------------------------------------------------------------
   'deep-research':        { category: 'research', tags: ['Research', 'Synthesis', 'Multi-Source', 'Report'] },
-  'market-research':      { category: 'research', tags: ['Market', 'Competitive-Analysis', 'TAM', 'Diligence'] },
 
   // --- finance / fundraising ------------------------------------------------
-  'investor-materials':   { category: 'finance', tags: ['Pitch-Deck', 'Investor', 'Financial-Model', 'Fundraising'] },
-  'investor-outreach':    { category: 'finance', tags: ['Outreach', 'Cold-Email', 'Investor', 'Fundraising'] },
 
   // --- creative -------------------------------------------------------------
-  'canvas-design':        { category: 'creative', tags: ['Design', 'Poster', 'PDF', 'PNG', 'Visual'] },
-  'algorithmic-art':      { category: 'creative', tags: ['Generative-Art', 'p5js', 'Creative-Coding'] },
-  'brand-guidelines':     { category: 'creative', tags: ['Brand', 'Typography', 'Color', 'Style'] },
 
   // --- devops ---------------------------------------------------------------
-  'vercel-for-github':    { category: 'devops', tags: ['Vercel', 'GitHub-Actions', 'CI', 'Deploy'] },
-  'vercel-git-deploys':   { category: 'devops', tags: ['Vercel', 'Deploy', 'Rollback', 'Preview'] },
 
   // --- productivity / writing ----------------------------------------------
-  'doc-coauthoring':      { category: 'productivity', tags: ['Docs', 'Writing', 'Spec', 'Proposal'] },
-  'internal-comms':       { category: 'productivity', tags: ['Comms', 'Status-Report', 'Update', 'Incident'] },
-  'learn':                { category: 'productivity', tags: ['Learning', 'Explanation', 'Teaching'] },
 
   // --- media ----------------------------------------------------------------
   // `pptx` USED TO BE HERE, on the stated grounds that "Hermes has docx / pdf / xlsx
@@ -220,12 +205,8 @@ const INCLUDE = {
  */
 const SCRUB = [
   // -- specific: an example gets a better replacement than the catch-all would give
-  [/Smart contract development for MAD Gambit on Base L2/g, 'Smart contract development on Base L2'],
   [/Architecture patterns for the MAD Gambit Hono \+ Supabase stack/g, 'Architecture patterns for a Hono + Supabase stack'],
-  [/PLATFORM_FEE_BPS = 188;\s*\/\/ 1\.88%/g, 'PLATFORM_FEE_BPS = 250; // 2.5%'],
-  [/COMMUNITY_SHARE_BPS = 2880;\s*\/\/ 28\.8% \(display 28%\)/g, 'COMMUNITY_SHARE_BPS = 1000; // 10%'],
   [/MAD Gambit prediction market/g, 'prediction market'],
-  [/MAD Gambit login/g, 'Example App login'],
   [/mad-gambit-mcp/g, 'example-mcp'],
   // -- generic catch-alls, last
   [/MADHATs Gambit/g, 'the platform'],
@@ -306,6 +287,21 @@ const EXCLUDE = {
   'prescription-refill': 'Anthropic demo skill',
   'return-refund': 'Anthropic demo skill',
   'slack-gif-creator': 'Anthropic demo skill',
+  'solidity-foundry': 'Removed 2026-10-19: not part of the Hermes/Codex build',
+  'alchemy-api': 'Removed 2026-10-19: not part of the Hermes/Codex build',
+  'agentic-gateway': 'Removed 2026-10-19: not part of the Hermes/Codex build',
+  'frontend-design': 'Removed 2026-10-19: not part of the Hermes/Codex build',
+  'market-research': 'Removed 2026-10-19: not part of the Hermes/Codex build',
+  'investor-materials': 'Removed 2026-10-19: not part of the Hermes/Codex build',
+  'investor-outreach': 'Removed 2026-10-19: not part of the Hermes/Codex build',
+  'canvas-design': 'Removed 2026-10-19: not part of the Hermes/Codex build',
+  'algorithmic-art': 'Removed 2026-10-19: not part of the Hermes/Codex build',
+  'brand-guidelines': 'Removed 2026-10-19: not part of the Hermes/Codex build',
+  'vercel-for-github': 'Removed 2026-10-19: not part of the Hermes/Codex build',
+  'vercel-git-deploys': 'Removed 2026-10-19: not part of the Hermes/Codex build',
+  'doc-coauthoring': 'Removed 2026-10-19: not part of the Hermes/Codex build',
+  'internal-comms': 'Removed 2026-10-19: not part of the Hermes/Codex build',
+  'learn': 'Removed 2026-10-19: not part of the Hermes/Codex build',
 };
 
 /** Split YAML-ish frontmatter off a SKILL.md without pulling in a YAML dependency. */
@@ -589,7 +585,7 @@ function indexClaudeSurface() {
 /**
  * Refuse to overwrite a Claude-side file this script did not write.
  *
- * 76 of the 78 files under .claude/skills/ are claude-native and have no upstream here.
+ * Most files under .claude/skills/ are claude-native and have no upstream here.
  * Writing one would destroy it with no copy anywhere, so a generated file is stamped
  * and only a stamped file is ever replaced.
  */
@@ -927,7 +923,7 @@ function main() {
     console.log('  not generated here, and this script does not own them:');
     for (const r of refused) console.log(`    ${r.name} -> ${r.file}`);
     console.log('');
-    console.log('  This is the expected steady state, not an error. 76 of the 78 files under');
+    console.log('  This is the expected steady state, not an error. Most files under');
     console.log('  .claude/skills/ are claude-native with no upstream in this repo, and replacing');
     console.log('  one would destroy the only copy. To hand a skill over to generation, delete the');
     console.log('  file; the next run writes it stamped with `generated_by:` and adopts it after.');

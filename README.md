@@ -1,4 +1,4 @@
-# Seven6-Hermes-MOA
+# Seven6-MOA [Nemo-Hermes]
 
 A multi-tier model orchestration for [Hermes Agent](https://github.com/hermes-agent),
 with the Codex CLI wired in as an MCP tool server, a declared capability registry,
@@ -28,9 +28,8 @@ request.
 | heavy aux | `custom:or-fallback` | `qwen/qwen3.5-122b-a10b` | compression, web_extract |
 | unrouted | `custom:anthropic-direct` | `claude-sonnet-5` | reachable only via `/model` |
 
-**What this costs, stated plainly.** Parent, subagents, MoA reference and vision now
-draw one ~40 RPM NIM bucket. The old rule, "children get a bucket of their own", is
-gone; the CI block now requires any slot sharing the parent's provider to use the
+**What this costs, stated plainly.** Parent, subagents, MoA reference and vision
+draw one ~40 RPM NIM bucket. The CI block requires any slot sharing the parent's provider to use the
 parent's exact model, and only `vision` among the auxiliary slots may share it. The
 parent no longer runs offline: offline work degrades through `fallback_providers`
 (OpenRouter, then the local 49B, then the local 3B). The five light auxiliary slots
@@ -47,30 +46,19 @@ HTTP 200, 81 models). The same weights carry other ids elsewhere: Vercel AI Gate
 `nemotron-3.5-super-vl`. Context length stays 131072 until `nim-preflight.sh`
 measures the real window; the model card says up to 1M, which a card is not.
 
-**History worth keeping.** DeepSeek was removed repo-wide on 2026-09-28 and the
-`hf-router` provider with it. `local-vl` (nemotron-nano-12b-v2-vl on llama.cpp :8080)
-was removed 2026-09-25 along with hermes3:8b. `nvidia/llama-3.3-nemotron-super-49b-v1.5`
-turned out to be dead (HTTP 410, end-of-life 2026-08-26) after being "corroborated by
-three resellers", and `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`, which carried
-subagents and fallback 1 until the primary moved, is still listed in the NIM picker
-but routed nowhere. Run `bash scripts/nim-preflight.sh --list | grep -i nemotron`
-after any NVIDIA model swap.
+**Check ids against the gateway.** A retired NIM id answers HTTP 410, and
+`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` is listed in the NIM picker but routed
+nowhere. Run `bash scripts/nim-preflight.sh --list | grep -i nemotron` after any
+NVIDIA model swap.
 
 **A model id belongs to the gateway, not to the model.** The same weights carry
-different ids per gateway — Hugging Face called DeepSeek-V4.1-Flash
-`deepseek-ai/DeepSeek-V4.1-Flash`, OpenRouter called the identical weights
-`deepseek/deepseek-v4.1-flash` — and an id copied between providers is wrong by
-default. `discover_models: false` means Hermes never probes `/models`, so a bad
-id does not error: it silently resolves to the main model. Kept as the
-illustrative example even though DeepSeek is leaving this build, because it's
-the clearest real case this repo hit of the failure mode itself.
+different ids per gateway (see above), and an id copied between providers is wrong by
+default. `discover_models: false` means Hermes never probes `/models`, so a bad id
+does not error: it silently resolves to the main model.
 
-**Why the vision tier used to be a separate server**, kept for context even
-though the tier itself is gone: a VL GGUF ships as two files, the language model
-and a separate `mmproj` projector. Ollama cannot attach the second, and it does
-not refuse — `ollama create` *succeeds*, silently dropping vision, leaving a
-model with `-VL` in its name that cannot see. That risk doesn't apply to the
-current floor model since it isn't a vision model at all.
+**There is no local vision.** The floor model is text-only, and a VL GGUF ships as a
+language model plus a separate `mmproj` projector that Ollama cannot attach: `ollama
+create` succeeds and silently drops vision. Vision routes to the cloud primary.
 
 ## Codex
 
@@ -115,8 +103,8 @@ and never by path:
 | `configs/hermes/config.yaml` | the routing core — providers, auxiliary slots, MCP servers |
 | `configs/codex/config.toml` | Codex CLI config |
 | `capabilities.yaml` | the single declaration of what exists |
-| `hermes-skills/` | 29 skills in Hermes format, plus `.port-lock.json` |
-| `.claude/skills/` | 77 skills in Claude Code format |
+| `hermes-skills/` | skills in Hermes format, plus `.port-lock.json` |
+| `.claude/skills/` | skills in Claude Code format (counts: `scripts/check-capabilities.py`) |
 | `scripts/` | apply, verify, report, doctor, capability gate, skill port, Codex shim |
 | `docs/models/` | `TAKEOVER.md` (full bring-up), `VSCODE-QUICKSTART.md` (fast path) |
 
@@ -135,8 +123,8 @@ node   scripts/port-skills-to-hermes.js --check   # what has drifted upstream
 
 ## Commands
 
-`/orchestrate` `/quality-gate` `/harness-audit` `/learn` `/evolve` `/skill-create`
-`/model-route` `/plan` `/security` `/checkpoint` `/doctor` `/market-brief`
+`/orchestrate` `/quality-gate` `/learn` `/skill-create` `/plan` `/security`
+`/checkpoint` `/doctor`
 
 ## Bring it up
 

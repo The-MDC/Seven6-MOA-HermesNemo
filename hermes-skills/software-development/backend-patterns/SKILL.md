@@ -9,7 +9,7 @@ metadata:
   hermes:
     tags: [Backend, Hono, Node, Caching, Repository-Pattern]
     category: software-development
-    related_skills: [api-design, frontend-design, mcp-builder, mcp-server-patterns, verification-loop]
+    related_skills: [api-design, mcp-builder, mcp-server-patterns, verification-loop]
 ---
 
 # Backend Patterns

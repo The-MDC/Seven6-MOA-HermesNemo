@@ -52,9 +52,7 @@ NIM_BASE="${NVIDIA_NIM_BASE_URL:-https://integrate.api.nvidia.com/v1}"
 # NIM gateway's id for the weights; other gateways use other ids for them (Vercel
 # nvidia/nemotron-3.5-super-vl, Hugging Face nvidia/NVIDIA-Nemotron-3.5-Super-VL-
 # 120B-A12B, local alias nemotron-3.5-super-vl) -- never paste those here.
-# History: nvidia/llama-3.3-nemotron-super-49b-v1.5 died 2026-08-26 (HTTP 410);
-# nvidia/nemotron-3-nano-omni-30b-a3b-reasoning carried the subagent role until
-# the primary moved. Override with NVIDIA_NIM_MODEL to probe either.
+# Override with NVIDIA_NIM_MODEL to probe another id (a retired id answers HTTP 410).
 NIM_MODEL="${NVIDIA_NIM_MODEL:-nvidia/nemotron-3.5-super-vl-120b-a12b}"
 OR_BASE="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}"
 LOCAL_BASE="${LOCAL_MODEL_BASE_URL:-http://127.0.0.1:11434/v1}"
@@ -352,9 +350,6 @@ check_bucket() {   # name  base_url  key_value  purpose
 }
 
 if [ "$NIM_ONLY" = "0" ]; then
-    # The Hugging Face router check that used to sit here is gone with the
-    # `hf-router` provider (removed 2026-09-28): it warned "no key set" on every
-    # run for a tier that no longer exists.
     hdr "fallback bucket — OpenRouter ($OR_BASE)"
     check_bucket "openrouter" "$OR_BASE" "${OPENROUTER_API_KEY:-}" "the 429 fallback"
 

@@ -44,26 +44,26 @@ hermes skills list          # confirm they registered
 
 ## What is here
 
-28 skills across 11 categories, each laid out as Hermes expects —
-`<category>/<name>/SKILL.md` plus any supporting files copied verbatim.
+13 skills across 6 categories (`python3 scripts/check-capabilities.py` prints the live
+count), each laid out as Hermes expects: `<category>/<name>/SKILL.md` plus any
+supporting files copied verbatim.
 
 | Category | Skills |
 |---|---|
-| blockchain | `agentic-gateway` · `alchemy-api` · `solidity-foundry` |
-| software-development | `api-design` · `backend-patterns` · `frontend-design` · `mcp-builder` · `mcp-server-patterns` · `verification-loop` |
+| software-development | `api-design` · `backend-patterns` · `mcp-builder` · `mcp-server-patterns` · `verification-loop` |
 | security | `security-audit` · `security-review` |
-| research | `deep-research` · `market-research` |
-| finance | `investor-materials` · `investor-outreach` |
-| creative | `algorithmic-art` · `brand-guidelines` · `canvas-design` |
-| devops | `vercel-for-github` · `vercel-git-deploys` |
-| productivity | `doc-coauthoring` · `internal-comms` · `learn` |
+| research | `deep-research` |
 | media | `file-reading` · `pdf-reading` |
 | autonomous-ai-agents | `skill-creator` |
 | **operations** (hand-written) | `local-desktop` · `hermes-orchestration` |
 
-This build carries **no product content**. Four upstream sources name a specific product
-in their code examples — an MCP server name, a SIWE login string, a stack summary, an
-example contract's fee constants — and the port scrubs those on the way through. Deleting
+On 2026-10-19 fifteen ported skills were removed because they do not help a
+Hermes + Codex orchestration build: blockchain (3), fundraising (2), creative (3),
+Vercel deploys (2), writing and comms (3), market research and frontend design. The
+port script lists each under `EXCLUDE` so nobody re-adds them by accident.
+
+This build carries **no product content**. Some upstream sources name a specific product
+in their code examples, and the port scrubs those on the way through. Deleting
 the generated file would not have worked: the next run writes it straight back. `SCRUB` in
 `scripts/port-skills-to-hermes.js` holds the substitutions, and the port re-reads its own
 output afterwards and fails if any reference survived.
@@ -106,17 +106,16 @@ Hermes resolves a skill by its **directory** name, Claude Code by the frontmatte
 tier could take the handoff, stopped being invisible to the model instructing it.
 
 The Claude copy is stamped `generated_by:`, and **only a stamped file is ever
-overwritten**. 76 of the 78 pre-existing files under `.claude/skills/` are Claude-native
-with no upstream in this repo; replacing one would destroy the only copy. The nine that
-share a name with a ported skill are reported as `NOT OVERWRITTEN` on every run, which is
-the expected steady state rather than an error. To hand one over to generation, delete it
+overwritten**. Most files under `.claude/skills/` are Claude-native with no upstream in
+this repo; replacing one would destroy the only copy. The ones that share a name with a
+ported skill are reported as `NOT OVERWRITTEN` on every run, which is the expected steady
+state rather than an error. To hand one over to generation, delete it
 — the next run writes it stamped and owns it after.
 
-## Why these and not the other 25
+## Why these and not the rest
 
-Of the skills readable in a Claude Code environment, 53 are absent from Hermes'
-199-skill catalog. Most should stay absent, and `EXCLUDE` in the porting script records
-the reason for each. Three kinds do not belong:
+Most skills readable in a Claude Code environment should stay out of Hermes, and
+`EXCLUDE` in the porting script records the reason for each. Three kinds do not belong:
 
 - **Claude-surface skills** — `chrome-browser`, `built-in-browser`, `docs`,
   `web-artifacts-builder`, `theme-factory`, `product-self-knowledge`. They describe tools
@@ -131,7 +130,7 @@ the reason for each. Three kinds do not belong:
 
 Closed: Hermes' `security` domain had reconnaissance and tooling (`web-pentest`,
 `oss-forensics`, `sherlock`) but no systematic source-level code audit. `security-audit`
-fills that. Hermes' `blockchain` domain had only `evm`, `hyperliquid` and `solana`.
+fills that.
 
 **A gap that turned out not to be one.** `pptx` was ported here on the stated grounds
 that Hermes lacked it. Upstream ships `skills/productivity/powerpoint` — checked

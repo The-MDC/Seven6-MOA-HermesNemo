@@ -4,11 +4,8 @@
  * It provides `readStdin` and nothing else. before-submit-prompt.js (secret scanning)
  * and after-mcp-execution.js (MCP result logging) need it.
  *
- * History: this file was once missing, so every hook died on `require('./adapter')`, and
- * a hook that crashes on require still exits - the session continues and nothing reports
- * that the hook did not run. It also used to export no-op bridges (runExistingHook,
- * transformToClaude, hookEnabled) for four forwarder scripts that pointed at Cursor
- * hooks that never existed here. Those scripts and bridges were removed 2026-10-19.
+ * Why it matters: a hook that crashes on `require('./adapter')` still exits, so the
+ * session continues and nothing reports that the hook did not run.
  */
 
 'use strict';

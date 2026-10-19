@@ -7,27 +7,12 @@ execute it. Context for *why* the stack is shaped this way is in
 
 ## Division of labour
 
-**RETIRED to two actors, 2026-09-25.** This table used to name three: a human/Claude
-for bootstrap, a local VL model as a screenshot-reading "runner" for steps 1.3
-onward, and Claude Sonnet for escalations. The VL runner's whole tier —
-`nemotron-nano-12b-v2-vl` on `llama-server` :8080 — is retired along with
-`hermes3:8b`, on request ("remove hermes 8B and the 12b"). There is no local
-vision model left to hand step-execution to. What follows is what the old
-section explained about *why* that role existed and what replaced it; the
-actual steps below (Phase 1 onward) are now run by a human or Claude directly,
-same as Phase 0.
+The runbook has two actors. The steps below are run by a human or Claude directly.
 
 | Actor | Available | Does | Does not |
 |---|---|---|---|
 | **A human, or Claude** | from the start | Every phase, start to finish — Ollama, the floor model pull, all verification. | Skip the verify gate because a step "looks fine". |
 | **Claude Sonnet** | from the start | Every ESCALATE row. Diagnoses failures, writes config changes, decides trade-offs. | — |
-
-**Why a vision model used to run this runbook**, kept for context: the loop is
-"compare the output to the stated success line", and on a Windows bring-up much
-of that output is not text — installer dialogs, the VS Code terminal dropdown,
-dashboard pages. A text-only runner sees none of that, since it never hits
-stdout. That reasoning is sound; it just no longer has a model to attach to
-here, since the tier it depended on is gone.
 
 **The one rule that matters, unchanged:** a step is done when its success line
 matches. Not when the command exits 0, not when the output looks plausible. A
@@ -70,7 +55,7 @@ Save the output. You will compare against it at step 6.1.
 
 The local tier backs the floor plus five auxiliary slots. Nothing else works
 predictably until Ollama holds it. (There is no second local tier anymore —
-`vision` routes to the cloud; see Step 1.3 below for why.)
+`vision` routes to the cloud primary.)
 
 ### Step 1.1 — Confirm Ollama is serving
 
@@ -87,41 +72,12 @@ ollama list
 ollama pull hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
 ```
 
-**Success:** `ollama list` now shows the full tag above (swapped from
-`hermes3:8b` 2026-09-25, on request). ~3.4 GB, verified live against the
+**Success:** `ollama list` now shows the full tag above. ~3.4 GB, verified live against the
 Hugging Face repo (3,421,895,840 bytes). Needs a reasonably current Ollama —
 the `hf.co/` direct-pull feature; check `ollama --version` if the pull is
-rejected. Note it is an "abliterated" (refusal-removed) fine-tune, a real
-behavior change from hermes3:8b, not just a smaller download — it now backs
-every local-routed auxiliary slot, `approval` included.
-
-### Step 1.3 — RETIRED 2026-09-25 · was "Local vision AND heavy local text"
-
-This step, and Step 1.4 below, downloaded and served `nemotron-nano-12b-v2-vl`
-via a second local server (`local-vl`, llama.cpp on :8080) — the VL runner the
-old Division of Labour section described. That tier is gone from
-`config.yaml` entirely, on request ("remove hermes 8B and the 12b").
-
-`vision` routed to the cloud after that -- first `custom:or-fallback` /
-`deepseek/deepseek-v4.1-flash` (the one-line revert this file always documented
-as the alternative to running a second local service), then moved again
-2026-09-27 to `custom:nvidia-nim` / `nvidia/ising-calibration-1.5-31b`, and
-finally on 2026-10-19 to `custom:nvidia-nim` / `nvidia/nemotron-3.5-super-vl-120b-a12b`
-(the primary, a vision-language model), which is where it lives now. Nothing to
-download, build, or serve here anymore either way.
-
-The reasoning this step used to carry — why Ollama can't be trusted with a
-VL GGUF's separate `mmproj` projector, the exact llama.cpp build floor and the
-two PRs (`#19547`, `#23638`) a working build needed — is preserved in
-`configs/hermes/config.yaml`'s git history if a local vision tier is ever
-rebuilt. It no longer describes anything this file asks you to do. Skip to
-Phase 2.
-
-### Step 1.4 — RETIRED 2026-09-25 · was "Prove the VL model SEES and CALLS TOOLS"
-
-Retired along with Step 1.3 above — there is no local vision model left to
-probe. `vision`'s current cloud route (`nvidia/nemotron-3.5-super-vl-120b-a12b`
-on NVIDIA NIM, the primary) is natively multimodal; nothing new to prove here.
+rejected. Note it is an "abliterated" (refusal-removed) fine-tune — a real
+behavior change, not just a smaller download — and it backs every local-routed
+auxiliary slot, `approval` included.
 
 ---
 
@@ -153,7 +109,7 @@ paste one into a chat window, never put one in `config.yaml`.**
 Only `NVIDIA_API_KEY` is strictly required to start: it is the primary model's key
 (`nemotron-3.5-super-vl-120b-a12b`). `OPENROUTER_API_KEY` enables fallback 1 and the
 two heavy auxiliary slots, so a stack missing it runs degraded rather than failing
-loudly. `HF_TOKEN` left the build with the `hf-router` provider (2026-09-28).
+loudly.
 
 A fourth, fully optional key, `ANTHROPIC_API_KEY`, enables `anthropic-direct`
 (claude-sonnet-5) — unwired into any tier, reachable only via
@@ -235,11 +191,11 @@ affect the current one.
 
 ### Step 3.4 — Install the ported skills
 
-`hermes-skills/` holds 28 skills across 11 categories (the figure
+`hermes-skills/` holds 13 skills across 6 categories (the figure
 `scripts/check-capabilities.py` reports as "hermes"): ported Claude skills plus some
 written by hand for this build. They are what let this install carry work on its
-own rather than being a bare model router — research, security audit, investor
-material, local desktop operation. Copying them is a separate step from
+own rather than being a bare model router — research, security audit, MCP and API
+work, local desktop operation. Copying them is a separate step from
 `hermes-apply.ps1`, which installs two config files and nothing else.
 
 ```powershell
@@ -249,9 +205,8 @@ Copy-Item -Path 'hermes-skills\*' -Destination $dest -Recurse -Force
 hermes skills list
 ```
 
-**Success:** `hermes skills list` shows these 28 skills across 11 categories — the ten
-ported ones (`blockchain`, `software-development`, `security`, `research`, `finance`,
-`creative`, `devops`, `productivity`, `media`, `autonomous-ai-agents`) plus
+**Success:** `hermes skills list` shows these 13 skills across 6 categories:
+`software-development`, `security`, `research`, `media`, `autonomous-ai-agents` and
 **`operations`**.
 
 **`operations` is the one that matters for handing this build over.**
@@ -419,8 +374,7 @@ Five tests: one per tier, plus Codex delegation. Run them in order.
 ### Step 5.1 — Parent
 
 **The parent is `custom:nvidia-nim` / `nvidia/nemotron-3.5-super-vl-120b-a12b`**
-(2026-10-19, on request). Before this it was the local 49B Nemotron GGUF
-(2026-09-28), and before that DeepSeek on the now-removed hf-router. It needs
+(2026-10-19, on request). It needs
 `NVIDIA_API_KEY` and a key that can see the model:
 
 ```powershell
@@ -450,11 +404,9 @@ hermes --print "Delegate to a subagent: have it reply with exactly subagent-ok"
 ```
 
 **Success:** `subagent-ok`. Subagents must run on the SAME model as the parent,
-`nvidia/nemotron-3.5-super-vl-120b-a12b`, on the same provider. Since 2026-10-19
-that is the intended layout (one model, one bucket); a subagent answering on any
-OTHER model -- the old `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`, or the dead
-`nvidia/llama-3.3-nemotron-super-49b-v1.5` (HTTP 410, EOL 2026-08-26) -- means the
-config drifted, and CI would have refused it.
+`nvidia/nemotron-3.5-super-vl-120b-a12b`, on the same provider. That is the intended layout
+(one model, one bucket); a subagent answering on any OTHER model means the config
+drifted, and CI would have refused it.
 
 ### Step 5.3 — Tool call through Hermes
 

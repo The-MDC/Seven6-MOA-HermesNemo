@@ -1,7 +1,7 @@
 # Handoff — current state of the Hermes/Codex build
 
 **Update this file in place. Do not add another dated handoff.** Audits keep finding
-documents that describe a retired topology as current, because each was written as a
+documents that describe an earlier topology as current, because each was written as a
 point-in-time snapshot and then left. A living state file with one authoritative
 version does not rot the same way. "What is true now" belongs here, and only here.
 Anything that must survive a deletion is migrated into this file or into
@@ -21,12 +21,8 @@ consolidation and its compensations for Super VL's weak spots are described unde
 3. `TAKEOVER.md` — the full six-phase bring-up, one success line per step.
 4. `configs/hermes/config.yaml` — the config itself carries the reasoning inline.
 
-`running-the-stack.md`, `kimi-k3-quants.md`, and `local-floor.md` (the retired
-Kimi-K3-topology docs) were deleted 2026-09-27 as part of consolidating this repo
-down to one current doc set. Their request-economics and rate-limit-bucket
-reasoning is superseded by `configs/hermes/config.yaml`'s own inline comments on
-the current topology, which restate the same arguments fresh against what
-actually runs now.
+Request-economics and rate-limit-bucket reasoning lives in
+`configs/hermes/config.yaml`'s inline comments on the current topology.
 
 ---
 
@@ -42,20 +38,18 @@ aggregator  custom:nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b   (2026-10-19
                                   The ONE role that is deliberately not Super VL: 550B total / 55B
                                   active, TEXT-ONLY, the ACTING model on a MoA turn. Same provider as
                                   the reference, so CI enforces a different MODEL instead of a
-                                  different provider. Not part of docs/hermes-moa-build/BUILD.md's
-                                  swarm roster.
+                                  different provider.
 fallback 1  custom:or-fallback   qwen/qwen3.5-122b-a10b            429 escape, different bucket
-fallback 2  custom:local         hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL   offline, full strength (ADDED 2026-10-19)
+fallback 2  custom:local         hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL   offline, full strength
 fallback 3  custom:local         hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
-                                  last resort + the 5 light aux slots (swapped from hermes3:8b 2026-09-25)
+                                  last resort + the 5 light aux slots
 unrouted    custom:anthropic-direct  claude-sonnet-5, Anthropic's OpenAI-compat endpoint: in providers:
-                                  since 2026-09-25, wired into NOTHING; /model custom:anthropic-direct:claude-sonnet-5
+                                  wired into NOTHING; /model custom:anthropic-direct:claude-sonnet-5
 
 auxiliary   5 slots -> Hermes-3-Llama-3.2-3B-abliterated:Q8_0   routing, classification,
                                                                   titles, approval, curator
             2 slots -> qwen/qwen3.5-122b-a10b      compression, web_extract
-            1 slot  -> nvidia-nim                  vision (nemotron-3.5-super-vl-120b-a12b, was
-                                                   ising-calibration-1.5-31b until 2026-10-19)
+            1 slot  -> nvidia-nim                  vision (nemotron-3.5-super-vl-120b-a12b)
 mcp         8 servers, 2 hosted (cloudflare, submcp) on an explicit CI allowlist;
             all 8 set prompts:false + resources:false (CI-enforced)
 ```
@@ -74,14 +68,6 @@ What changed on 2026-10-19, and what it cost:
 - **Unverified claim to settle.** A forum report says the hosted endpoint once answered
   under a different model id than requested. `nim-preflight.sh` now warns when the reply
   names another model.
-- **Fixed in passing.** `hermes-verify.ps1`, `hermes-report.ps1` and `nim-preflight.sh`
-  still demanded the `hf-router` provider and `HF_TOKEN` removed on 2026-09-28, so the
-  verify gate failed against a correct install.
-
-History kept for context: DeepSeek and `hf-router` removed 2026-09-28; `local-vl` and
-hermes3:8b removed 2026-09-25 (the 3B floor is text-only, so vision never had a local
-replacement); `nvidia/llama-3.3-nemotron-super-49b-v1.5` dead, HTTP 410, EOL 2026-08-26.
-
 Three structural rules hold this together. Breaking any one fails **silently**:
 
 1. **Provider references must dodge `excluded_providers`.** `deepseek`, `openrouter`
@@ -91,12 +77,10 @@ Three structural rules hold this together. Breaking any one fails **silently**:
    main model — a bill and a latency change, no error.
 2. **One model per bucket.** A slot may share the parent's provider only on the
    parent's exact model; only `vision` among the auxiliaries may; every
-   `fallback_providers` link must be on a different endpoint from the parent. (Until
-   2026-10-19 this read "subagents must not share the parent's provider".)
+   `fallback_providers` link must be on a different endpoint from the parent.
 3. **No auxiliary slot may sit on `auto`.** `auto` means "use the main model", which
-   puts side jobs on the parent's bucket. This is how `vision` was silently broken:
-   left on `auto` from when the parent was Kimi-K3, which had vision, while the
-   current parent is text-only.
+   puts side jobs on the parent's bucket, and it silently breaks `vision` the day the
+   parent changes to a model with no vision encoder.
 
 ---
 
@@ -121,9 +105,7 @@ cannot see.
 
 - **Whether `hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0` is
   pulled on the box.** `ollama pull` for it is documented (see the table above);
-  the disk is the open question, same class of gap as hermes3:8b's ever was.
-  (The old llama-server/VL-projector item that used to sit here no longer
-  applies -- that tier is retired, not just unverified.)
+  the disk is the open question.
 - **`cloudflare` and `submcp` MCP URLs and tool lists** — taken from the handoff,
   never reachable from the build container. A wrong URL fails loudly; a wrong
   `tools.include` fails silently by filtering everything out.
@@ -138,18 +120,9 @@ cannot see.
   honours them, and how Hermes' `reasoning_effort` maps onto them, is untested: no
   NVIDIA key was available in the build container. `scripts/nim-preflight.sh`
   carries the probe.
-- **`nvidia/llama-3.3-nemotron-super-49b-v1.5` was never actually live -- this is
-  now resolved, not open.** Added 2026-09-25 as fallback_providers[0] and
-  `nvidia-nim`'s own `default_model` (subagents/delegation, MoA aggregator),
-  replacing nemotron-3-super-120b-a12b on request. This item used to say
-  "neither use is live-verified... corroborated by three independent resellers,
-  not first-party" — that corroboration was wrong. A real Hermes session on this
-  NIM account hit the id live via `/moa` on 2026-09-27 and got back HTTP 410
-  Gone, end-of-life 2026-08-26T09:00:00Z: it had been dead for a month.
-  Replaced everywhere in `config.yaml` with `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`,
-  which answered live in the same fan-out. Lesson for the next model swap in this
-  file: `nim-preflight.sh --list` is one command and would have caught this
-  immediately -- run it, don't triangulate against resellers.
+- **Model swaps on NIM.** A retired id answers HTTP 410, not a config error. Run
+  `bash scripts/nim-preflight.sh --list | grep -i nemotron` after every swap; do not
+  triangulate against resellers.
 - **`anthropic-direct` under a real key.** Verified live with garbage credentials
   only (two probes distinguishing this endpoint's OpenAI-shaped vs. Anthropic-shaped
   errors, and that `/models` needs `x-api-key` not `Bearer`) — never confirmed that
@@ -216,9 +189,6 @@ runs it. `docs/models/VSCODE-QUICKSTART.md`, then
   `autonomous-ai-agents/hermes-agent`, which covers Hermes in general better than
   ours does. Ours stays narrow: these tiers, these gateway ids, these scripts. If it
   starts restating the general case, cut that part.
-- **`docs/hermes-moa-build/BUILD.md`** — the local-swarm design doc (`seven6moa`
-  profile, Kanban pattern, future candidates). Its banner says it is unwired design.
-  Keep as a design record or delete; nothing in the live config depends on it.
 - **`scripts/inventory-local-models.ps1`** — a read-only utility that lists what
   Ollama holds against what the config expects. Nothing links to it; run it before
   trusting a "model is pulled" claim.
@@ -256,13 +226,44 @@ itself offers: `hermes gateway migrate --multiplex` to fold an existing per-prof
 fleet onto the host gateway, or `gateway.standalone: true` in the profile's own
 `config.yaml`, which Hermes labels a temporary shim that will be removed.
 
-Not verified: how `seven6moa` became sticky. `docs/hermes-moa-build/BUILD.md` creates the
-profile but does not run `profile use`; Desktop may have switched to it. Also unverified
-and probably wrong in that doc as first written: its `profile create` flags
-(`--workspace_path`, `--initial_status`), which are not `profile create` flags in the
-Hermes source. Corrected there. `hermes gateway run` is already the foreground mode;
-there is no `--foreground` flag, and the sticky-profile file is a plain-text
-`active_profile` (absent means `default`), not JSON.
+**Make this build the gateway's default (2026-10-19, on request).** The gateway always
+runs from the `default` profile, so the build has to be what `default` loads, not a named
+profile. `hermes-apply.ps1` already installs into `$HERMES_HOME` (default
+`%LOCALAPPDATA%\hermes`, which is the `default` profile), with backups:
+
+```powershell
+pwsh -File scripts/hermes-apply.ps1 -WhatIf    # preview
+pwsh -File scripts/hermes-apply.ps1            # config.yaml, codex config, skills -> default profile
+hermes profile use default                     # removes the sticky active_profile file
+hermes gateway install
+hermes config check
+```
+
+`.env` is not touched; keys the named profile held in its own `.env` must exist in the
+default one (`%LOCALAPPDATA%\hermes\.env`). Do not run `hermes profile use seven6moa`:
+that is the command that reproduces exit 78.
+
+**Keep only `default` and `seven6moa` (2026-10-19, on request).** Hermes cannot delete
+`default`; every other profile and MoA preset can go. List first, then delete by name.
+Profile deletion removes the profile directory and its gateway service and cannot be
+undone, so export anything worth keeping first:
+
+```powershell
+hermes profile list
+hermes profile export <name>          # optional backup, one per profile you might want back
+hermes profile delete <name>          # asks you to type the name; repeat per extra profile
+hermes moa list
+hermes moa delete <preset>            # repeat per extra preset; keep the one this repo writes
+```
+
+This repo writes exactly one MoA preset, `default` (`moa.presets.default`), and CI
+fails if `moa.default_preset` names a preset that is not there. Nothing in this repo
+defines any other profile or preset, so the cleanup is on the machine, not in the files.
+
+Not verified: how `seven6moa` became sticky. The retired swarm plan created the profile
+but never ran `profile use`; Desktop may have switched to it. `hermes gateway run` is
+already the foreground mode; there is no `--foreground` flag, and the sticky-profile file
+is a plain-text `active_profile` (absent means `default`), not JSON.
 
 ---
 
@@ -286,23 +287,34 @@ SWE-bench Verified. Compensations shipped in this repo, each with its limit:
 Open question owned by the user: swap the aggregator and reference roles
 (Super VL aggregates, Ultra advises) or keep Ultra as the acting model.
 
+### Candidates, unverified
+
+Carried over from the retired swarm plan. None is wired, and none was checked against
+a real Hermes install.
+
+- **NemoClaw** — NVIDIA's open-source sandbox for always-on agents (kernel isolation,
+  network policy, privacy routing). Worth a spike before an agent touches secrets.
+- **NIM model-free mode** — one generic container that builds an engine for a model you
+  point it at. Needs a GPU host and an NGC login; unconfirmed that it takes GGUF-only repos.
+- **TensorRT-LLM** — could replace llama.cpp for local serving; a serving-stack change,
+  not a model swap.
+- **RAG blueprint** — grounded retrieval over this repo's own docs for review agents.
+
 ---
 
 ## Removal log
 
-2026-10-19 consolidation, each file read before deletion and its unique content moved:
+2026-10-19 consolidation. Each file was read before deletion and its unique content
+moved:
 
-| Removed | Why | Unique content went to |
-|---|---|---|
-| `HANDOFF.md` | Old ordered bring-up for a retired topology (told you to rename the repo the wrong way, referenced PR #16, steps B2/B3/D2 retired) | The "why some steps can never be delegated" table → `HERMES-SELF-SETUP.md`; Codex-shim and `external_dirs` items → this file |
-| `handoff-2026-09-22.md` | Dated drift record for a topology that no longer exists | MemoryCore/WhatsApp status, MoA-as-spend-multiplier note → "Needs a human" §3 above; the hermes-council wrong-diagnosis record already lives in `config.yaml` |
-| `.claude/hooks/session-start.js`, `session-end.js`, `pre-compact.js`, `stop.js` | Unwired forwarders to Cursor hooks that never existed here | Nothing to keep; `.claude/hooks/README.md` updated |
-| `.claude/instincts/ecc-instincts.yaml` | Eight instincts about a different repository (`everything-claude-code`) | Nothing portable |
+| Removed | Unique content went to |
+|---|---|
+| Earlier ordered handoffs (two) | The "why some steps can never be delegated" table → `HERMES-SELF-SETUP.md`; Codex-shim and `external_dirs` items → this file; MemoryCore/WhatsApp status and the MoA-as-spend-multiplier note → "Needs a human" §3 |
+| Four unwired hook forwarders | Nothing to keep; `.claude/hooks/README.md` updated |
+| A local-swarm design doc | Four NVIDIA candidates, one line each, under "Candidates, unverified" below |
+| An instincts file about a different repository | Nothing portable |
 
-Earlier precedent: `running-the-stack.md`, `kimi-k3-quants.md` and `local-floor.md` were
-deleted 2026-09-27 the same way.
-
-One decision from the old local-floor note is kept as a hypothesis, not a fact: a
+One hypothesis, not a fact: a
 Hermes-4-14B quant at IQ4_XS was suggested as a stronger tool-caller than the 3B floor
 for similar resident memory. Nobody verified that the model exists at that size or how
 it calls tools. Check `ollama` and the Hugging Face repo before acting on it.

@@ -15,7 +15,7 @@ Add `--quiet` to print only warnings and failures (useful in CI or a hook).
 | Group | Checks |
 |---|---|
 | **toolchain** | `git`, `node`, `npm` present; `python3` advisory |
-| **claude harness** | `.claude/settings.json` parses; slash commands and rules counted; **every script referenced by `hooks.json` actually exists**; `.mcp.json` parses |
+| **claude harness** | `.claude/settings.json` parses; slash commands and rules counted; **every script referenced by a hook in `settings.json` actually exists**; `.mcp.json` parses |
 | **hermes agent** | `hermes` on PATH; registered in `.mcp.json` |
 | **network egress** | github.com, npm registry, Anthropic API reachable — an egress allowlist is otherwise silent until a build fails deep inside |
 
@@ -42,6 +42,6 @@ The doctor makes both loud and immediate.
 ## When to run it
 
 - First thing in a new clone or a new environment
-- After changing `hooks.json`, `.mcp.json`, or `settings.json`
+- After changing `.mcp.json` or `settings.json`
 - Before a PR — it is the first box in the PR template
 - Whenever something "should be working" but silently isn't

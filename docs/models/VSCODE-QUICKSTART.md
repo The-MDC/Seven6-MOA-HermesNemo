@@ -1,8 +1,7 @@
 # VS Code quickstart — local tier + cloud tiers, on Windows
 
 The fast path. Gets the local floor model
-(`hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0`, swapped from
-`hermes3:8b` 2026-09-25) and the cloud tiers working, and nothing else. The full
+(`hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0`) and the cloud tiers working, and nothing else. The full
 bring-up, including MCP servers, is `TAKEOVER.md`; this is the subset you need
 before any of that matters.
 
@@ -12,18 +11,15 @@ on NVIDIA NIM, so the fast path is cloud-first again: `NVIDIA_API_KEY` is what m
 Hermes start. The MoA aggregator is the one other model: `nvidia/nemotron-3-ultra-550b-a55b`
 on the same NIM key (text-only, 550B). The local Ollama models are failover only, not the
 parent and not the aggregator, so §2.2 is needed for offline strength, not for MoA or a first reply.
-DeepSeek and the `hf-router` provider stay removed (2026-09-28); `HF_TOKEN` is gone.
 
 Every step has a **success line**. A step is done when the output matches it —
 not when the command exits without complaining. That distinction is the whole
 reason this file is written out rather than improvised: a wrong chat template
 still chats, and a dangling model reference still answers, just on the wrong model.
 
-Total download: about 3.4 GB. Budget a few minutes on a normal connection --
-smaller and faster than the hermes3:8b pull this replaced (~4.7 GB), and there
-is no second local service to set up: no llama-server, no build-floor check, no
-`--mmproj`. That used to be a separate phase this file did not cover at all;
-now it doesn't exist to cover.
+Total download: about 3.4 GB. Budget a few minutes on a normal connection. There is
+no second local service to set up: no llama-server, no build-floor check, no
+`--mmproj`.
 
 ---
 
@@ -112,8 +108,8 @@ ollama pull hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
 Pulled straight from Hugging Face via Ollama's own `hf.co/` feature -- needs a
 reasonably current Ollama; check `ollama --version` if the pull is rejected.
 **Success:** `ollama list` shows the full tag above. Note it is an "abliterated"
-(refusal-removed) fine-tune -- a real behavior change from hermes3:8b, not just
-a smaller download, and it now backs every slot below including `approval`.
+(refusal-removed) fine-tune -- a real behavior change, not just a smaller
+download, and it backs every slot below including `approval`.
 
 This one model already unblocks five of the eight auxiliary slots — routing,
 classification, tool selection, titles, curation.
@@ -164,7 +160,6 @@ OPENROUTER_API_KEY=sk-or-v1-...
 | `OPENROUTER_API_KEY` | openrouter.ai/keys | **fallback 1 + heavy aux** — Qwen3.5-122B-A10B |
 | `NVIDIA_API_KEY` | build.nvidia.com | **the primary: parent + subagents + MoA reference + vision** — nemotron-3.5-super-vl-120b-a12b |
 
-No `HF_TOKEN` anymore -- the `hf-router` provider it served is removed entirely.
 `NVIDIA_API_KEY` is strictly required for Hermes to start. Missing
 `OPENROUTER_API_KEY` makes that tier fail over silently rather than error,
 which is why step 4 checks it explicitly.
@@ -252,7 +247,7 @@ aggregator  nvidia-nim    nemotron-3-ultra-550b-a55b       API only, text-only, 
 fallback 1  or-fallback   Qwen3.5-122B-A10B      API only, also 2 heavy aux slots
 fallback 2  local         Llama-3.3-Nemotron-Super-49B-v1.5, UD-Q8_K_XL   Ollama, §2.2; offline, full strength
 fallback 3  local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0
-                          last resort + 5 light aux slots (swapped from hermes3:8b)
+                          last resort + 5 light aux slots
 unrouted    anthropic-direct  claude-sonnet-5    configured, intact, via /model only
 ```
 
@@ -264,9 +259,6 @@ dependency fault, and the Codex bridge handshake. None of them gate the model
 tiers. `scripts\hermes-blockers.ps1` diagnoses the last two without changing
 anything, and `TAKEOVER.md` phases 3–6 cover the rest.
 
-**There is no separate vision tier to set up.** `local-vl` (nemotron-nano-12b-v2-vl,
-llama.cpp on :8080) was retired 2026-09-25 along with hermes3:8b, and `vision` now
-routes to `custom:nvidia-nim` / `nvidia/nemotron-3.5-super-vl-120b-a12b` (2026-10-19):
-the primary is a vision-language model, so it replaces the image-only
-`nvidia/ising-calibration-1.5-31b` that held the slot from 2026-09-27. Vision still
-fails the way every cloud tier does, with no network.
+**There is no separate vision tier to set up.** `vision` routes to
+`custom:nvidia-nim` / `nvidia/nemotron-3.5-super-vl-120b-a12b`: the primary is a
+vision-language model. Vision fails the way every cloud tier does, with no network.

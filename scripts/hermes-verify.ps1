@@ -22,10 +22,8 @@ param(
     # gate that fails on something the NEXT stage installs is a gate nobody can
     # pass -- so each stage only requires what it was supposed to deliver.
     #
-    #   a     the local floor model only (Hermes-3-Llama-3.2-3B-abliterated:Q8_0,
-    #         swapped from hermes3:8b 2026-09-25).
-    #   b     adds the Codex bridge. (No local vision runner to add anymore --
-    #         local-vl was removed the same day; vision routes to the cloud.)
+    #   a     the local floor model only (Hermes-3-Llama-3.2-3B-abliterated:Q8_0).
+    #   b     adds the Codex bridge. (Vision routes to the cloud.)
     #   full  everything, including the hosted MCP servers. (default)
     [ValidateSet('a', 'b', 'full')]
     [string]$Stage = 'full',
@@ -79,10 +77,6 @@ if (-not (Test-Path $ConfigPath)) {
 
     # The three provider keys every reference in the repo config resolves through.
     # A rename here is the exact failure that dangles every custom: reference.
-    # `hf-router` was in this list until 2026-10-19: the provider was removed from
-    # config.yaml on 2026-09-28, so this check Failed on every run against a
-    # correct install -- a gate that cannot pass, which this repo's CLAUDE.md names
-    # as worse than one that cannot fail.
     foreach ($p in @('nvidia-nim', 'or-fallback', 'local')) {
         if ($raw -match "(?m)^\s{2}$([regex]::Escape($p))\s*:") { Ok "provider '$p' defined" }
         else { Fail "provider '$p' is MISSING - every custom:$p reference dangles" }
@@ -117,8 +111,7 @@ if (-not (Test-Path $EnvPath)) {
 } else {
     $envRaw = Get-Content $EnvPath -Raw
     # NVIDIA_API_KEY is the PRIMARY model's key (nemotron-3.5-super-vl-120b-a12b);
-    # without it there is no primary and everything runs on failover. HF_TOKEN left
-    # this list with the hf-router provider.
+    # without it there is no primary and everything runs on failover.
     foreach ($k in @('NVIDIA_API_KEY', 'OPENROUTER_API_KEY')) {
         # Presence only. The value is never read, printed, or length-checked.
         if ($envRaw -match "(?m)^\s*$k\s*=\s*\S") { Ok "$k is set" }
@@ -167,10 +160,8 @@ if ($ollama) {
     # A tag mismatch is not a loud failure: Hermes resolves the miss by falling
     # back to the main model, so you get an answer from the wrong tier.
     #
-    # Ollama carries the floor -- the whole local tier, as of 2026-09-25. `local-vl`
-    # (llama.cpp, a second local server for vision) was removed the same day the
-    # floor model swapped from hermes3:8b to this one; vision now routes to the
-    # cloud (or-fallback), so there is no second local tier to check here anymore.
+    # Ollama carries the whole local tier; vision routes to the cloud, so there is no
+    # second local server to check.
     foreach ($m in @('hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0')) {
         if ($tags -match [regex]::Escape($m)) { Ok "$m present" }
         else {
@@ -346,16 +337,13 @@ if ($Deep) {
     }
 
     # Read the endpoint and the model id OUT OF THE CONFIG BEING VERIFIED rather
-    # than restating them here. THIS IS THE FIX FOR A BUG THIS FILE SHIPPED.
+    # than restating them here.
     #
-    # These three lines used to carry literals. One of them probed OpenRouter for
-    # `deepseek-ai/DeepSeek-V4.1-Flash` -- the Hugging Face repo id, which
-    # OpenRouter does not serve under that name. Correcting config.yaml alone would
-    # have left this script still probing the old id and reporting green; correcting
-    # this script alone would have left Hermes still sending the wrong one. Two
-    # copies of one fact, and either can be fixed without the other.
+    # Two copies of one fact can each be fixed without the other: correcting
+    # config.yaml alone would leave this script probing a stale id and reporting
+    # green.
     #
-    # So there is one copy now, and it is the one Hermes actually reads.
+    # There is one copy, and it is the one Hermes actually reads.
     #
     # Deliberately NOT a YAML parser. It reads two scalars out of a known block
     # shape and FAILS when it cannot find them. Falling back to a literal on a parse

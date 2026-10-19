@@ -79,7 +79,7 @@ picker this repo just fought to pin at four.
 Hand off when the task is:
 
 - **Bounded and git-repo-scoped** — implement, fix, or refactor something inside a
-  checked-out repository, not "reason about a business decision" or "write investor
+  checked-out repository, not "reason about a business decision" or "write marketing
   copy." Codex has no context on this repo's conventions or `CLAUDE.md` — that
   context lives in Hermes' system prompt and this repo, and shelling out to Codex
   does not carry it along.
@@ -92,7 +92,7 @@ Hand off when the task is:
   large tree. Reimplementing either in Hermes' own tool-call loop is strictly worse:
   more requests, more tokens, no test-in-sandbox loop underneath.
 
-Keep on Hermes: anything needing this repo's own canon (`CLAUDE.md`, `ABOUT-ME/`),
+Keep on Hermes: anything needing this repo's own canon (`.hermes.md`, `CLAUDE.md`),
 anything conversational, anything where the "iterate against a sandboxed checkout"
 shape doesn't apply. A one-line edit is not obviously worth a subprocess handoff
 either — the overhead of spawning and polling a background process costs more than

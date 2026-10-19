@@ -9,7 +9,7 @@ metadata:
   hermes:
     tags: [MCP, Tools, FastMCP, Integration]
     category: software-development
-    related_skills: [api-design, backend-patterns, frontend-design, mcp-server-patterns, verification-loop]
+    related_skills: [api-design, backend-patterns, mcp-server-patterns, verification-loop]
 ---
 
 # MCP Server Development Guide
