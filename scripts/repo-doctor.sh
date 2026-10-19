@@ -35,7 +35,7 @@ warn() { printf '  %swarn%s  %s\n' "$YLW" "$RST" "$*"; WARNED=$((WARNED+1)); }
 bad()  { printf '  %sFAIL%s  %s\n' "$RED" "$RST" "$*"; FAILED=$((FAILED+1)); }
 hdr()  { [ "$QUIET" = 1 ] || printf '\n%s%s%s\n' "$DIM" "$*" "$RST"; }
 
-printf 'Hermes-Codex build, environment check\n'
+printf 'Seven6-Hermes-MOA build, environment check\n'
 
 # ---------------------------------------------------------------- toolchain --
 hdr "toolchain"

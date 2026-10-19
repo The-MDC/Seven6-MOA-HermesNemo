@@ -172,11 +172,26 @@ jobs:
           #
           # Express the requirement itself and nothing narrower: a different
           # provider from the parent, and no chain back to it.
+          #
+          # AMENDED 2026-10-19, on request ("the nemotron 3.5 Super VL should be the
+          # only gateway and inference"): the parent is now nvidia-nim, and so are
+          # subagents, the MoA reference and vision. Separate buckets are traded away
+          # on purpose, so "different provider from the parent" can no longer be the
+          # rule. What replaces it is narrower and still fails loudly: a slot MAY share
+          # the parent's provider only if it uses the parent's EXACT model. That
+          # blocks the real regression -- a second, stray model id (a nano, an old
+          # 49B, a typo) quietly spending the primary's RPM bucket -- without
+          # hardcoding any model id here, so a future primary swap does not leave
+          # this assertion guarding a retired name.
           deleg = d["delegation"]
           parent_provider = d["model"]["provider"]
+          parent_default = d["model"]["default"]
           assert deleg.get("provider"), "subagents must name a provider"
-          assert deleg["provider"] != parent_provider, \
-              "subagents must not share the parent's provider"
+          if deleg["provider"] == parent_provider:
+              assert deleg.get("model") == parent_default, \
+                  f"subagents share the parent's provider ({parent_provider}) but run " \
+                  f"{deleg.get('model')!r}, not the parent's {parent_default!r} -- a " \
+                  f"second model on the primary's bucket is how its RPM gets spent unseen"
           assert deleg["fallback_providers"] == [], \
               "subagents must have no fallback chain back onto the parent"
 
@@ -298,9 +313,35 @@ jobs:
               # just not the failure this specific assertion exists to catch, and
               # not a reason to weaken it for every other provider too.
               if prov != "custom:local":
-                  assert prov != parent_provider, \
-                      f"auxiliary.{task} points at the parent provider ({prov}) — that defeats the split"
+                  if prov == parent_provider:
+                      # AMENDED 2026-10-19 with the single-primary layout: ONE slot
+                      # may ride the parent's provider -- `vision`, because the
+                      # primary is a vision-language model and an image-only second
+                      # model is exactly what was retired -- and only on the
+                      # parent's exact model. Every other slot (title, approval,
+                      # compression, ...) is a frequent side job; each one on this
+                      # provider is a request taken from the parent's RPM bucket.
+                      assert task == "vision", \
+                          f"auxiliary.{task} points at the parent provider ({prov}) — only " \
+                          f"`vision` may share it; any other slot defeats the split"
+                      assert cfg.get("model") == parent_default, \
+                          f"auxiliary.{task} shares the parent provider but runs " \
+                          f"{cfg.get('model')!r}, not the parent's {parent_default!r}"
               assert cfg.get("model"), f"auxiliary.{task} names a provider but no model"
+
+          # A fallback can only answer a failure of the parent if it does not share
+          # the parent's endpoint. With the parent on a cloud bucket this is the
+          # check that matters: a 429 on nvidia-nim cannot be answered from
+          # nvidia-nim, and the old chain led with exactly that.
+          parent_name = parent_provider.split(":", 1)[1] if parent_provider.startswith("custom:") else parent_provider
+          parent_host = urlparse(providers[parent_name]["api"]).netloc if parent_name in providers else None
+          fallbacks = d.get("fallback_providers") or []
+          assert fallbacks, "fallback_providers: is empty — a 429 on the parent would stop the session"
+          for i, fb in enumerate(fallbacks):
+              fb_host = urlparse(fb.get("base_url", "")).netloc
+              assert not (parent_host and fb_host == parent_host), \
+                  f"fallback_providers[{i}] ({fb.get('model')}) is on the parent's endpoint " \
+                  f"({parent_host}) — it shares the bucket that just failed"
 
           # Every provider REFERENCE must resolve to something that can actually
           # serve. The exclusion check above compares excluded_providers against the
@@ -405,7 +446,9 @@ jobs:
           print("  mcp       ", len(mcp), "server(s),",
                 (f"{len(hosted_used)} hosted ({', '.join(hosted_used)})"
                  if hosted_used else "all loopback/local") + ", all tool-filtered")
-          print("  auxiliary ", len(aux), "slot(s) off the parent bucket ->",
+          shares = sorted(t for t, c in aux.items() if c.get("provider") == parent_provider)
+          print("  auxiliary ", len(aux), "slot(s);", (", ".join(shares) or "none"),
+                "shares the primary, the rest off its bucket ->",
                 sorted({c["provider"] for c in aux.values()}))
           print("  throughput", "execute_code:" + str(ce.get("mode")),
                 "| parent compress@" + str(parent_threshold),

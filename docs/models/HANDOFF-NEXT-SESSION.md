@@ -33,65 +33,51 @@ actually runs now.
 ## The architecture as committed
 
 ```
-parent      custom:local         hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL
-                                  Ollama, moved off DeepSeek/hf-router 2026-09-28, on request
-subagents   custom:nvidia-nim    nvidia/nemotron-3-nano-omni-30b-a3b-reasoning high-compute delegation, also MoA reference
-            (swapped 2026-09-27 -- llama-3.3-nemotron-super-49b-v1.5, itself
-             swapped from nemotron-3-super-120b-a12b 2026-09-25, is confirmed
-             DEAD: HTTP 410, EOL 2026-08-26, hit live on this NIM account)
-fallback    custom:or-fallback   qwen/qwen3.5-122b-a10b            reverted off DeepSeek 2026-09-28
-floor       custom:local         hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
-                                  Ollama, 5 aux slots (swapped from hermes3:8b 2026-09-25)
+parent      custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   THE primary, 2026-10-19, on request
+                                  ("the nemotron 3.5 Super VL should be the only gateway and inference")
+subagents   custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   same model, same bucket
+vision      custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   pinned, never `auto`; it is a VL model
+moa ref     custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b
 aggregator  custom:local         hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL
-                                  Ollama, same GGUF as parent, MoA aggregator role only --
-                                  not a self-grading conflict since parent and aggregator
-                                  are unrelated roles, not part of docs/moa-b/BUILD.md's
-                                  swarm roster either
-
-vision      RETIRED as a local tier 2026-09-25, on request ("remove hermes 8B and
-            the 12b"). `local-vl` (nemotron-nano-12b-v2-vl, llama.cpp :8080) is
-            gone entirely; vision now routes to nvidia-nim
-            (nvidia/ising-calibration-1.5-31b, cloud, moved there 2026-09-27 off
-            an earlier or-fallback/DeepSeek revert of the same slot). The floor
-            model is text-only (Llama-3.2 3B), so none of this was ever a
-            vision-capable swap.
+                                  Ollama. The ONE role that is deliberately not Super VL: a different
+                                  provider and model, so MoA still checks the reference against
+                                  something. Not part of docs/hermes-moa-build/BUILD.md's swarm roster.
+fallback 1  custom:or-fallback   qwen/qwen3.5-122b-a10b            429 escape, different bucket
+fallback 2  custom:local         the 49B GGUF above                offline, full strength (ADDED 2026-10-19)
+fallback 3  custom:local         hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
+                                  last resort + the 5 light aux slots (swapped from hermes3:8b 2026-09-25)
+unrouted    custom:anthropic-direct  claude-sonnet-5, Anthropic's OpenAI-compat endpoint: in providers:
+                                  since 2026-09-25, wired into NOTHING; /model custom:anthropic-direct:claude-sonnet-5
 
 auxiliary   5 slots -> Hermes-3-Llama-3.2-3B-abliterated:Q8_0   routing, classification,
                                                                   titles, approval, curator
-            2 slots -> qwen/qwen3.5-122b-a10b      compression, web_extract (reverted 2026-09-28)
-            1 slot  -> nvidia-nim                  vision (ising-calibration-1.5-31b)
-moa         nvidia-nim Nemotron 30B-a3b reference -> local 49B Nemotron aggregator
-            (reference moved off DeepSeek/hf-router 2026-09-28; aggregator moved off
-            the now-dead NVIDIA-hosted 49B id to a local Ollama GGUF of the same
-            model, specifically so it does not share nvidia-nim's bucket with the
-            reference model above -- same-provider MoA self-grades)
+            2 slots -> qwen/qwen3.5-122b-a10b      compression, web_extract
+            1 slot  -> nvidia-nim                  vision (nemotron-3.5-super-vl-120b-a12b, was
+                                                   ising-calibration-1.5-31b until 2026-10-19)
 mcp         7 servers, 2 hosted (cloudflare, submcp) on an explicit CI allowlist
-
-fallback_providers (ordered):
-  1. nvidia/nemotron-3-nano-omni-30b-a3b-reasoning on nvidia-nim (cloud, SAME
-     bucket AND SAME model as subagents/delegation; swapped 2026-09-27 from the
-     now-confirmed-dead llama-3.3-nemotron-super-49b-v1.5)
-  2. qwen/qwen3.5-122b-a10b on or-fallback (was fallback 1; reverted off
-     deepseek/deepseek-v4.1-flash 2026-09-28)
-  3. hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0 local
-     (last resort, unchanged in role -- swapped from hermes3:8b)
-
-anthropic-direct (claude-sonnet-5, Anthropic's OpenAI-compat endpoint) exists in
-providers: since 2026-09-25, wired into NOTHING above -- reachable only via
-/model custom:anthropic-direct:claude-sonnet-5.
-
-RESOLVED: `parent` moved to `custom:local` / the same 49B Nemotron GGUF the MoA
-aggregator uses, on request. This was the one open question left after the
-first DeepSeek-removal pass -- every cloud candidate checked cost something
-real (Kimi-K3, the pre-DeepSeek parent, see `git show 84b3dc4`, was already
-retired here for 429s and size; promoting nvidia-nim's Nemotron would have
-collapsed the parent/subagents bucket isolation; promoting or-fallback would
-have collapsed the parent/compression/web_extract isolation) -- moving parent
-local sidesteps all three, since local has no cloud rate-limit bucket to
-collapse. The `hf-router` provider is removed entirely: it existed for exactly
-one reason (serving DeepSeek-V4-Pro as parent) and nothing else in this file
-ever used it.
 ```
+
+What changed on 2026-10-19, and what it cost:
+
+- **One bucket.** Parent, subagents, MoA reference and vision share one ~40 RPM NIM key.
+  `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` stays in the NIM picker and routes
+  nowhere. The old fallback 1 (that nano on the same key) left the chain, because a 429
+  on the parent hit it too.
+- **No offline parent.** The 49B GGUF was the parent from 2026-09-28; it is now the MoA
+  aggregator and fallback 2. Offline work degrades through the chain instead of
+  continuing at full strength.
+- **Context length is unmeasured.** `providers.nvidia-nim.context_length` stays 131072.
+  The model card says up to 1M; raise it only to what `scripts/nim-preflight.sh` reports.
+- **Unverified claim to settle.** A forum report says the hosted endpoint once answered
+  under a different model id than requested. `nim-preflight.sh` now warns when the reply
+  names another model.
+- **Fixed in passing.** `hermes-verify.ps1`, `hermes-report.ps1` and `nim-preflight.sh`
+  still demanded the `hf-router` provider and `HF_TOKEN` removed on 2026-09-28, so the
+  verify gate failed against a correct install.
+
+History kept for context: DeepSeek and `hf-router` removed 2026-09-28; `local-vl` and
+hermes3:8b removed 2026-09-25 (the 3B floor is text-only, so vision never had a local
+replacement); `nvidia/llama-3.3-nemotron-super-49b-v1.5` dead, HTTP 410, EOL 2026-08-26.
 
 Three structural rules hold this together. Breaking any one fails **silently**:
 
@@ -100,9 +86,10 @@ Three structural rules hold this together. Breaking any one fails **silently**:
    under. That is why the remaining entries are named `or-fallback` and `local`.
    Naming an excluded provider directly resolves to nothing and falls back to the
    main model — a bill and a latency change, no error.
-2. **Subagents must not share the parent's provider.** Not "must avoid NIM" — that
-   rule encoded the old topology and blocked a correct layout. CI asserts the general
-   form now.
+2. **One model per bucket.** A slot may share the parent's provider only on the
+   parent's exact model; only `vision` among the auxiliaries may; every
+   `fallback_providers` link must be on a different endpoint from the parent. (Until
+   2026-10-19 this read "subagents must not share the parent's provider".)
 3. **No auxiliary slot may sit on `auto`.** `auto` means "use the main model", which
    puts side jobs on the parent's bucket. This is how `vision` was silently broken:
    left on `auto` from when the parent was Kimi-K3, which had vision, while the

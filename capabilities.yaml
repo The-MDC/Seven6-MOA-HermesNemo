@@ -789,7 +789,7 @@ upstream_skills:
     that can filter everything out without erroring. None of our own skills diagnose those.'
 - name: subagent-driven-development
   category: software-development
-  why: 'delegation routes subagents to custom:nvidia-nim and moa aggregates through it.
+  why: 'delegation routes subagents to custom:nvidia-nim (nvidia/nemotron-3.5-super-vl-120b-a12b, the primary) and moa aggregates through the local 49B.
     Both are configured and neither is taught. This executes plans via delegate_task
     with a two-stage review.'
 

@@ -47,11 +47,15 @@ bad()  { printf '  %sFAIL%s  %s\n' "$RED" "$RST" "$*"; FAILED=$((FAILED+1)); }
 hdr()  { [ "$QUIET" = 1 ] || printf '\n%s%s%s\n' "$DIM" "$*" "$RST"; }
 
 NIM_BASE="${NVIDIA_NIM_BASE_URL:-https://integrate.api.nvidia.com/v1}"
-# nvidia/llama-3.3-nemotron-super-49b-v1.5 confirmed DEAD 2026-09-27 (HTTP 410,
-# EOL 2026-08-26) -- swapped to nvidia/nemotron-3-nano-omni-30b-a3b-reasoning,
-# live-verified on this account the same day.
-NIM_MODEL="${NVIDIA_NIM_MODEL:-nvidia/nemotron-3-nano-omni-30b-a3b-reasoning}"
-HF_BASE="${HF_ROUTER_BASE_URL:-https://router.huggingface.co/v1}"
+# 2026-10-19: the PRIMARY model for the whole build, on request. Catalog id
+# verified against GET /v1/models (HTTP 200, 81 models, exact match). This is the
+# NIM gateway's id for the weights; other gateways use other ids for them (Vercel
+# nvidia/nemotron-3.5-super-vl, Hugging Face nvidia/NVIDIA-Nemotron-3.5-Super-VL-
+# 120B-A12B, local alias nemotron-3.5-super-vl) -- never paste those here.
+# History: nvidia/llama-3.3-nemotron-super-49b-v1.5 died 2026-08-26 (HTTP 410);
+# nvidia/nemotron-3-nano-omni-30b-a3b-reasoning carried the subagent role until
+# the primary moved. Override with NVIDIA_NIM_MODEL to probe either.
+NIM_MODEL="${NVIDIA_NIM_MODEL:-nvidia/nemotron-3.5-super-vl-120b-a12b}"
 OR_BASE="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}"
 LOCAL_BASE="${LOCAL_MODEL_BASE_URL:-http://127.0.0.1:11434/v1}"
 SEARXNG="${SEARXNG_URL:-}"
@@ -183,12 +187,27 @@ if msg.get("reasoning_content"):
 PY
                 [ "$QUIET" = 1 ] || printf '  %s      %s%s\n' "$DIM" "$l" "$RST"
             done
+            # Did the endpoint answer under the id we asked for? A forum report says
+            # the hosted endpoint once returned a different model id than the one
+            # requested (a `private/nvidia/...` variant). UNVERIFIED as of
+            # 2026-10-19 -- this is the check that settles it on this account. Runs
+            # in the main shell, not the pipe above, so warn() actually counts.
+            RET_MODEL=$(python3 -c 'import json,sys
+print((json.load(open(sys.argv[1])).get("model") or ""))' "$TMP/chat.json" 2>/dev/null) || RET_MODEL=""
+            if [ -z "$RET_MODEL" ]; then
+                warn "reply carries no \"model\" field — cannot confirm which model answered"
+            elif [ "$RET_MODEL" = "$NIM_MODEL" ]; then
+                ok "reply names the requested model ($RET_MODEL)"
+            else
+                warn "asked for $NIM_MODEL, reply names $RET_MODEL — confirm this is the same weights before trusting the id"
+            fi
         fi
         ;;
     429)
         bad "POST /chat/completions: 429 rate limited"
-        printf '        The free NIM tier runs around 40 RPM. This is the constraint the\n'
-        printf '        delegation split in configs/hermes/config.yaml exists to dodge.\n'
+        printf '        The free NIM tier runs around 40 RPM. Parent, subagents, MoA reference\n'
+        printf '        and vision all spend this one bucket now (config.yaml, 2026-10-19), so\n'
+        printf '        a 429 here is the case fallback_providers exists for.\n'
         ;;
     401|403)
         bad "POST /chat/completions: $CODE — rejected. Not a retry case."
@@ -265,12 +284,11 @@ fi
 
 # ------------------------------------------------------------- other buckets --
 #
-# The PARENT runs on the HF router and NIM carries the SUBAGENTS. That is the
-# reverse of the layout this script was first written against, which is why the
-# section headers below say "parent bucket" over the Hugging Face check.
+# The PARENT, subagents, MoA reference and vision all run on NIM now (primary
+# model nemotron-3.5-super-vl-120b-a12b, 2026-10-19). What sits on OTHER buckets
+# is the failover: OpenRouter, then the local Ollama models.
 #
-# The tiers sit on separate providers so a rate limit on one cannot starve the
-# others. That only holds if those providers actually answer, so check them here.
+# Failover only helps if those providers actually answer, so check them here.
 #
 # A tier that is configured but unreachable is the quiet failure: Hermes falls back
 # onto whatever still works, which is NIM, and the rate limit you were avoiding
@@ -294,14 +312,14 @@ check_bucket() {   # name  base_url  key_value  purpose
 }
 
 if [ "$NIM_ONLY" = "0" ]; then
-    hdr "parent bucket — Hugging Face Inference ($HF_BASE)"
-    check_bucket "hf-router" "$HF_BASE" "${HF_TOKEN:-}" "the parent tier"
-
+    # The Hugging Face router check that used to sit here is gone with the
+    # `hf-router` provider (removed 2026-09-28): it warned "no key set" on every
+    # run for a tier that no longer exists.
     hdr "fallback bucket — OpenRouter ($OR_BASE)"
     check_bucket "openrouter" "$OR_BASE" "${OPENROUTER_API_KEY:-}" "the 429 fallback"
 
-    if [ "$HF_BASE" = "$NIM_BASE" ] || [ "$OR_BASE" = "$NIM_BASE" ]; then
-        bad "a secondary bucket points at the NIM endpoint — they are not independent"
+    if [ "$OR_BASE" = "$NIM_BASE" ]; then
+        bad "the fallback bucket points at the NIM endpoint — a 429 on the primary would hit it too"
     fi
 
     # ---------------------------------------------------------- local floor --

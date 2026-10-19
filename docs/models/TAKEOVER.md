@@ -105,9 +105,10 @@ old Division of Labour section described. That tier is gone from
 `vision` routed to the cloud after that -- first `custom:or-fallback` /
 `deepseek/deepseek-v4.1-flash` (the one-line revert this file always documented
 as the alternative to running a second local service), then moved again
-2026-09-27 to `custom:nvidia-nim` / `nvidia/ising-calibration-1.5-31b`, which is
-where it lives now. Nothing to download, build, or serve here anymore either
-way.
+2026-09-27 to `custom:nvidia-nim` / `nvidia/ising-calibration-1.5-31b`, and
+finally on 2026-10-19 to `custom:nvidia-nim` / `nvidia/nemotron-3.5-super-vl-120b-a12b`
+(the primary, a vision-language model), which is where it lives now. Nothing to
+download, build, or serve here anymore either way.
 
 The reasoning this step used to carry — why Ollama can't be trusted with a
 VL GGUF's separate `mmproj` projector, the exact llama.cpp build floor and the
@@ -119,8 +120,8 @@ Phase 2.
 ### Step 1.4 — RETIRED 2026-09-25 · was "Prove the VL model SEES and CALLS TOOLS"
 
 Retired along with Step 1.3 above — there is no local vision model left to
-probe. `vision`'s current cloud route (`nvidia/ising-calibration-1.5-31b` on
-NVIDIA NIM) is natively multimodal; nothing new to prove here.
+probe. `vision`'s current cloud route (`nvidia/nemotron-3.5-super-vl-120b-a12b`
+on NVIDIA NIM, the primary) is natively multimodal; nothing new to prove here.
 
 ---
 
@@ -139,19 +140,20 @@ Test-Path $e
 New-Item -ItemType File -Path $e -Force
 ```
 
-### Step 2.2 — Confirm the three keys are present
+### Step 2.2 — Confirm the keys are present
 
 ```powershell
-Select-String -Path $e -Pattern '^(NVIDIA_API_KEY|HF_TOKEN|OPENROUTER_API_KEY)=' |
+Select-String -Path $e -Pattern '^(NVIDIA_API_KEY|OPENROUTER_API_KEY)=' |
   ForEach-Object { ($_ -split '=')[0] }
 ```
 
-**Success:** all three names print. **Names only — never print a value, never
+**Success:** both names print. **Names only — never print a value, never
 paste one into a chat window, never put one in `config.yaml`.**
 
-Only `NVIDIA_API_KEY` is strictly required to start. `HF_TOKEN` enables the parent
-tier and `OPENROUTER_API_KEY` the fallback, so a stack missing either will run
-degraded rather than fail loudly.
+Only `NVIDIA_API_KEY` is strictly required to start: it is the primary model's key
+(`nemotron-3.5-super-vl-120b-a12b`). `OPENROUTER_API_KEY` enables fallback 1 and the
+two heavy auxiliary slots, so a stack missing it runs degraded rather than failing
+loudly. `HF_TOKEN` left the build with the `hf-router` provider (2026-09-28).
 
 A fourth, fully optional key, `ANTHROPIC_API_KEY`, enables `anthropic-direct`
 (claude-sonnet-5) — unwired into any tier, reachable only via
@@ -415,32 +417,30 @@ Five tests: one per tier, plus Codex delegation. Run them in order.
 
 ### Step 5.1 — Parent
 
-**DeepSeek is fully removed from this build (2026-09-28, on request, repo-wide),
-parent included** — the parent is now `custom:local` /
-`hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL` (Ollama),
-the same GGUF as the MoA aggregator, a different role. Requires that model
-actually pulled in Ollama first (~58.68 GB, split GGUF) — see the `local`
-provider's comment in `config.yaml` for the pull command, and confirm real
-VRAM/RAM headroom before trusting this step: this model is now on the hot path
-for every turn, not an occasional MoA synthesis call.
+**The parent is `custom:nvidia-nim` / `nvidia/nemotron-3.5-super-vl-120b-a12b`**
+(2026-10-19, on request). Before this it was the local 49B Nemotron GGUF
+(2026-09-28), and before that DeepSeek on the now-removed hf-router. It needs
+`NVIDIA_API_KEY` and a key that can see the model:
+
+```powershell
+bash scripts/nim-preflight.sh --list | Select-String -Pattern 'super-vl'
+```
 
 ```powershell
 hermes --print "Reply with exactly: parent-ok"
 ```
 
 **Success:** `parent-ok`, and `hermes` reports the model as whatever
-`model.default` in `config.yaml` currently names (the 49B GGUF above, unless
-that's changed since).
+`model.default` in `config.yaml` currently names
+(`nvidia/nemotron-3.5-super-vl-120b-a12b`, unless that has changed since).
 
 **ESCALATE** if it answers on a different model than that. This could mean a
-`discover_models` regression that unpinned the picker, the 49B GGUF not
-actually present in Ollama (falls through to `fallback_providers` instead), or
-the parent falling through because a required cloud key is absent or spent.
-`hermes-verify.ps1 -Deep` separates those: it prints the id the endpoint
-*returned* alongside the one requested. (While the parent was still
-DeepSeek-V4-Pro on the now-removed hf-router, this same step confirmed the HF
-router served it through four live inference providers — kept as a reminder
-that router/local coverage is always worth checking directly, not assumed.)
+`discover_models` regression that unpinned the picker, `NVIDIA_API_KEY` absent
+or spent (the session falls through to `fallback_providers`: OpenRouter, then
+the local 49B, then the local 3B), or the hosted endpoint answering under
+another model id than the one requested -- a forum report says it once did.
+`hermes-verify.ps1 -Deep` and `nim-preflight.sh` separate those: both print the
+id the endpoint *returned* alongside the one requested.
 
 ### Step 5.2 — Delegation
 
@@ -448,11 +448,12 @@ that router/local coverage is always worth checking directly, not assumed.)
 hermes --print "Delegate to a subagent: have it reply with exactly subagent-ok"
 ```
 
-**Success:** `subagent-ok`. Subagents must run on `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`
-(swapped 2026-09-27 from `nvidia/llama-3.3-nemotron-super-49b-v1.5` — confirmed
-dead, HTTP 410, EOL 2026-08-26 — itself swapped from `nemotron-3-super-120b-a12b`
-2026-09-25), a different provider from the parent. Same provider on both means the
-split collapsed and the parent's bucket is being spent twice.
+**Success:** `subagent-ok`. Subagents must run on the SAME model as the parent,
+`nvidia/nemotron-3.5-super-vl-120b-a12b`, on the same provider. Since 2026-10-19
+that is the intended layout (one model, one bucket); a subagent answering on any
+OTHER model -- the old `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`, or the dead
+`nvidia/llama-3.3-nemotron-super-49b-v1.5` (HTTP 410, EOL 2026-08-26) -- means the
+config drifted, and CI would have refused it.
 
 ### Step 5.3 — Tool call through Hermes
 
@@ -534,7 +535,7 @@ divergence went unrecorded for three days and cost a session to rediscover.
 | Symptom | Owner | First move |
 |---|---|---|
 | Model answers but ignores tools | Sonnet | Wrong chat template — fix the Modelfile `TEMPLATE` |
-| Parent resolves to the wrong model | Sonnet | NOT router coverage — the HF router is confirmed to serve V4-Pro via 4 live providers. Check `HF_TOKEN`, `discover_models`, and the returned-vs-requested id from `-Deep` |
+| Parent resolves to the wrong model | Sonnet | Check `NVIDIA_API_KEY` can see `nvidia/nemotron-3.5-super-vl-120b-a12b` (`nim-preflight.sh --list`), `discover_models`, and the returned-vs-requested id from `-Deep` |
 | `hermes mcp list` missing an entry | A human, or Claude | Re-run step 3.2, restart gateway, re-check once |
 | `ModuleNotFoundError: mcp.server.fastmcp` | A human, or Claude | NOT a package fault — the supervisor substituted its Python. Check `HERMES_COUNCIL_PYTHON`, not pip |
 | `codex mcp list` says `Unsupported` | **Nobody** | Expected and unfixable — the interface was removed upstream. Delegation is the subprocess path; prove it at step 5.5 |

@@ -77,9 +77,13 @@ if (-not (Test-Path $ConfigPath)) {
     $raw = Get-Content $ConfigPath -Raw
     Ok "config present: $ConfigPath"
 
-    # The four provider keys every reference in the repo config resolves through.
+    # The three provider keys every reference in the repo config resolves through.
     # A rename here is the exact failure that dangles every custom: reference.
-    foreach ($p in @('hf-router', 'nvidia-nim', 'or-fallback', 'local')) {
+    # `hf-router` was in this list until 2026-10-19: the provider was removed from
+    # config.yaml on 2026-09-28, so this check Failed on every run against a
+    # correct install -- a gate that cannot pass, which this repo's CLAUDE.md names
+    # as worse than one that cannot fail.
+    foreach ($p in @('nvidia-nim', 'or-fallback', 'local')) {
         if ($raw -match "(?m)^\s{2}$([regex]::Escape($p))\s*:") { Ok "provider '$p' defined" }
         else { Fail "provider '$p' is MISSING - every custom:$p reference dangles" }
     }
@@ -112,7 +116,10 @@ if (-not (Test-Path $EnvPath)) {
     Fail "no .env at $EnvPath - every remote provider reads its key from there"
 } else {
     $envRaw = Get-Content $EnvPath -Raw
-    foreach ($k in @('NVIDIA_API_KEY', 'HF_TOKEN', 'OPENROUTER_API_KEY')) {
+    # NVIDIA_API_KEY is the PRIMARY model's key (nemotron-3.5-super-vl-120b-a12b);
+    # without it there is no primary and everything runs on failover. HF_TOKEN left
+    # this list with the hf-router provider.
+    foreach ($k in @('NVIDIA_API_KEY', 'OPENROUTER_API_KEY')) {
         # Presence only. The value is never read, printed, or length-checked.
         if ($envRaw -match "(?m)^\s*$k\s*=\s*\S") { Ok "$k is set" }
         else { Warn "$k not set - the tier that uses it will fail over" }
@@ -383,7 +390,6 @@ if ($Deep) {
         Probe $name $url $keyVar $model $CatalogAuthHeader $CatalogAuthPrefix
     }
 
-    Probe-Configured 'hf-router'   'HF_TOKEN'
     Probe-Configured 'nvidia-nim'  'NVIDIA_API_KEY'
     Probe-Configured 'or-fallback' 'OPENROUTER_API_KEY'
     # Present only if the key is set -- absence is fine (see the toolchain
