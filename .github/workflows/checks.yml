@@ -337,6 +337,20 @@ jobs:
                       f"fallback_providers[{i}] ({fb.get('model')}) is on the parent's endpoint but is not " \
                       f"listed under providers.{parent_name}.models — an unlisted id resolves silently to the main model"
 
+          # AMENDED 2026-10-20: the rule above covered only links back on the PARENT's
+          # endpoint. GLM-5.3 Flash is now fallback 1 on OpenRouter, so the same silent
+          # failure (an unlisted id resolving to the main model) applies to every
+          # fallback that sits on ANY configured provider's host, not just NIM's.
+          host_models = {urlparse(p_["api"]).netloc: (n_, set(p_.get("models") or []))
+                         for n_, p_ in providers.items()}
+          for i, fb in enumerate(fallbacks):
+              hit = host_models.get(urlparse(fb.get("base_url", "")).netloc)
+              if hit:
+                  assert fb.get("model") in hit[1], \
+                      f"fallback_providers[{i}] ({fb.get('model')}) is on providers.{hit[0]}'s " \
+                      f"endpoint but is not listed under providers.{hit[0]}.models -- an unlisted " \
+                      f"id resolves silently to the main model"
+
           # Every provider REFERENCE must resolve to something that can actually
           # serve. The exclusion check above compares excluded_providers against the
           # `providers:` dict only — it never looks at what the REST of the file
@@ -450,6 +464,21 @@ jobs:
           assert pm(preset_agg) not in preset_refs, \
               f"moa aggregator {pm(preset_agg)} is also a reference -- MoA would check " \
               f"its own work; the aggregator must be a different model"
+          # AMENDED 2026-10-20, with the five-reference roster (two on OpenRouter, three
+          # on NIM). Each reference is a model the user chose by name, and a wrong id
+          # fails the same silent way the aggregator's does: discover_models:false means
+          # it resolves to the main model, so that adviser would quietly be Super VL
+          # again. Every reference must be listed under its own provider's models:.
+          # A repeated (provider, model) pair is one adviser counted twice.
+          assert len(set(preset_refs)) == len(preset_refs), \
+              f"moa references repeat a (provider, model) pair: {preset_refs}"
+          for ref_provider, ref_model in preset_refs:
+              if (ref_provider or "").startswith("custom:"):
+                  ref_name = ref_provider.split(":", 1)[1]
+                  ref_listed = (providers.get(ref_name) or {}).get("models") or []
+                  assert ref_model in ref_listed, \
+                      f"moa reference {ref_model!r} is not in providers.{ref_name}.models " \
+                      f"-- discover_models:false means a wrong id silently resolves to the main model"
           agg_provider, agg_model = preset_agg["provider"], preset_agg["model"]
           if agg_provider.startswith("custom:"):
               agg_listed = (providers.get(agg_provider.split(":", 1)[1]) or {}).get("models") or []
@@ -645,6 +674,6 @@ jobs:
           # Gateways and models that were removed from this build. `deepseek` itself stays
           # legitimate: it is an excluded provider key in config.yaml, not a route.
           gone=$(git ls-files -z | grep -zv '^\.github/workflows/checks\.yml$' \
-            | xargs -0 grep -nIiE 'hf-router|local-vl|hermes3:8b|kimi-k3|ising-calibration|deepseek-v4' || true)
+            | xargs -0 grep -nIiE 'hf-router|local-vl|hermes3:8b|kimi-k3|deepseek-v4' || true)
           if [ -n "$gone" ]; then echo "$gone"; echo "removed gateway/model name(s) found"; exit 1; fi
           echo "no legacy names"

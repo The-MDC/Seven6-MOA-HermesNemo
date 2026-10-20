@@ -33,14 +33,15 @@
 #   subagents   NVIDIA NIM     nemotron-3.5-super-vl-120b-a12b  same model, same bucket
 #   vision      NVIDIA NIM     nemotron-3.5-super-vl-120b-a12b  it is a VL model;
 #                              pinned, never `auto` -- see auxiliary.vision
-#   moa ref     NVIDIA NIM     nemotron-3.5-super-vl-120b-a12b
-#   aggregator  NVIDIA NIM     nemotron-3-ultra-550b-a55b  (550B total / 55B active)
-#                              2026-10-19, on request. The ONE role that is
-#                              deliberately not Super VL: a larger, different model
-#                              that ACTS (writes the reply, runs the tool loop) on a
-#                              MoA turn. Text-only -- see the moa: block.
-#   fallback    OpenRouter     Qwen3.5-122B-A10B          1st link in fallback_providers
-#               NVIDIA NIM     nvidia/nemotron-3.5-lightning-30b-a3b         2nd link (2026-10-19, on request;
+#   aggregator  NVIDIA NIM     nemotron-3.5-super-vl-120b-a12b  ACTS on a MoA turn
+#                              (2026-10-20, on request; Ultra held this slot
+#                              2026-10-19 and is now a reference)
+#   moa refs    OpenRouter     z-ai/glm-5.3-flash, mistralai/mixtral-8x22b-instruct
+#               NVIDIA NIM     ising-calibration-1.5-31b, nemotron-3-nano-omni-30b-a3b-reasoning,
+#                              nemotron-3-ultra-550b-a55b  -- see the moa: block
+#   fallback    OpenRouter     z-ai/glm-5.3-flash         1st link in fallback_providers
+#               OpenRouter     Qwen3.5-122B-A10B          2nd link
+#               NVIDIA NIM     nvidia/nemotron-3.5-lightning-30b-a3b         3rd link (2026-10-19, on request;
 #                                                         replaces the local 49B, which an
 #                                                         8 GB machine cannot load). Same
 #                                                         bucket as the parent -- see the
@@ -76,18 +77,23 @@
 #      `local` provider's comment for the pull command. A model listed here but
 #      absent on the machine is exactly the dangling reference CI rejects in config
 #      and cannot detect on disk. scripts/hermes-verify.ps1 checks it.
-#   2. That NVIDIA_API_KEY can call nvidia/nemotron-3.5-lightning-30b-a3b (fallback 2). The public
+#   2. That NVIDIA_API_KEY can call nvidia/nemotron-3.5-lightning-30b-a3b (fallback 3). The public
 #      listing says the id exists; it does not say THIS key may call it:
 #          curl -s https://integrate.api.nvidia.com/v1/models/nvidia/nemotron-3.5-lightning-30b-a3b
 #          NVIDIA_NIM_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b bash scripts/nim-preflight.sh
-#   3. That NVIDIA_API_KEY can see BOTH NVIDIA models this file routes to --
-#      the primary and the MoA aggregator:
-#          bash scripts/nim-preflight.sh --list | grep -iE 'super-vl|ultra-550b'
+#   3. That NVIDIA_API_KEY can see EVERY NVIDIA model this file routes to --
+#      the primary and the three NIM MoA references (Ising, Omni, Ultra):
+#          bash scripts/nim-preflight.sh --list | grep -iE 'super-vl|ising|nano-omni|ultra-550b'
 #          curl -s https://integrate.api.nvidia.com/v1/models/nvidia/nemotron-3-ultra-550b-a55b
-#      (no key; HTTP 200 = served, 410 = retired and the body gives the date)
+#      (no key; HTTP 200 = served, 410 = retired and the body gives the date;
+#      repeat for nvidia/ising-calibration-1.5-31b and the nano-omni id)
 #          NVIDIA_NIM_MODEL=nvidia/nemotron-3-ultra-550b-a55b bash scripts/nim-preflight.sh
 #      A catalog that lists a model for one key can omit it for another, and the
 #      public catalog listing says nothing about whether THIS key may call a 550B.
+#   4. That OPENROUTER_API_KEY can call the two OpenRouter MoA references and
+#      fallback 1 (z-ai/glm-5.3-flash, mistralai/mixtral-8x22b-instruct). The public
+#      catalog lists them (checked 2026-10-20); it does not say THIS key may call them:
+#          curl -s https://openrouter.ai/api/v1/models | grep -o '"id":"z-ai/glm-5.3-flash"'
 # ---------------------------------------------------------------------------
 
 providers:
@@ -103,8 +109,9 @@ providers:
     #
     # PRIMARY MODEL, 2026-10-19, on request: nvidia/nemotron-3.5-super-vl-120b-a12b
     # carries parent, subagents, MoA reference and vision (see model:, delegation:,
-    # moa:, auxiliary.vision). The one other model routed to is the MoA AGGREGATOR,
-    # nvidia/nemotron-3-ultra-550b-a55b (below). Everything else in this file is an
+    # moa:, auxiliary.vision). The other NVIDIA models routed to are three MoA
+    # REFERENCES (Ising, Omni, Ultra, below) and fallback 3 (Lightning); GLM-5.3 Flash
+    # and Mixtral instruct go through OpenRouter. Everything else in this file is an
     # unrouted gateway kept intact on request (anthropic-direct), failover only
     # (or-fallback, local), or a deliberate non-NIM side job (see auxiliary:).
     #
@@ -125,15 +132,15 @@ providers:
     # below is set to match. Reasoning is toggled per request (`enable_thinking`),
     # not by a different id.
     #
-    # ONE BUCKET. Parent, subagents, MoA reference, vision and the MoA aggregator
-    # all spend this key's ~40 RPM together. The CI block requires any auxiliary or
+    # ONE BUCKET. Parent, subagents, the MoA aggregator, vision and three of the
+    # five MoA references (Ising, Omni, Ultra) all spend this key's ~40 RPM together. The CI block requires any auxiliary or
     # delegation slot sharing the parent's provider to use the SAME model as the
-    # parent. The MoA aggregator is the single sanctioned exception; CI requires it
-    # to be listed here and to differ from every MoA reference. A fan-out can
+    # parent. MoA references are the sanctioned exception; CI requires each one
+    # to be listed under its provider's models: and the aggregator to differ from every reference. A fan-out can
     # starve the parent -- keep delegation.max_concurrent_children low, and see
     # credential_pool_strategies for adding a second key (same provider, fill_first).
     #
-    # MOA AGGREGATOR: nvidia/nemotron-3-ultra-550b-a55b.
+    # MOA REFERENCE (it was the aggregator until 2026-10-20): nvidia/nemotron-3-ultra-550b-a55b.
     # LIVE-VERIFIED the same way: GET /v1/models lists it, and GET /v1/models/<id>
     # (no key) returns HTTP 200 for BOTH NVIDIA ids in this file. That per-id
     # endpoint also says WHY an id is dead: HTTP 410 with the end-of-life date for
@@ -146,7 +153,7 @@ providers:
     # (`nvidia/nemotron-3-ultra-550b-a55b`); Hugging Face and Baseten spell it
     # `nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4`.
     #
-    # NIM hosts nothing between 120B and 550B that can act as an aggregator: the
+    # NIM hosts nothing between 120B and 550B that could stand in for Ultra: the
     # large Nemotrons are 120B (Super), 253B (Llama-3.1-Nemotron-Ultra, marked
     # Deprecated), 340B (Nemotron-4) and 550B. The one 235B Nemotron-named model
     # (nvidia/Qwen3-Nemotron-235B-A22B-GenRM) is a reward model that scores two
@@ -159,7 +166,7 @@ providers:
     #
     # `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` stays in `models:` for the
     # /model picker and is routed nowhere.
-    # FALLBACK 2: nvidia/nemotron-3.5-lightning-30b-a3b (2026-10-19, on request; replaces the local 49B).
+    # FALLBACK 3: nvidia/nemotron-3.5-lightning-30b-a3b (2026-10-19, on request; replaces the local 49B).
     # Chosen over z-ai/glm-5.3-flash the same evening, on request ("it may need a smaller or
     # different model"). 30B total / ~3B active by its id. It is the ONLY Lightning size NIM,
     # OpenRouter and Hugging Face list; there is no 120B Lightning.
@@ -175,6 +182,12 @@ providers:
       - nvidia/nemotron-3-ultra-550b-a55b
       - nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       - nvidia/nemotron-3.5-lightning-30b-a3b
+      # MoA reference (2026-10-20, on request): vision, quantum, reviewer. NVIDIA's
+      # Ising Calibration VLM (Gemma-4 base, image-text-to-text, licence "other"),
+      # tuned on quantum-processor calibration plots. GET /v1/models/<id> returned
+      # HTTP 200 on 2026-10-20. A specialist, so it advises; it is NOT the
+      # auxiliary.vision model, which stays pinned to the parent (see auxiliary).
+      - nvidia/ising-calibration-1.5-31b
     discover_models: false
     # nim-preflight.sh reports what the endpoint advertises. Set this to the number
     # it prints. The preflight defaults to the model above; NVIDIA_NIM_MODEL
@@ -208,6 +221,15 @@ providers:
     default_model: qwen/qwen3.5-122b-a10b
     models:
       - qwen/qwen3.5-122b-a10b
+      # 2026-10-20, on request. Verified against openrouter.ai/api/v1/models the same
+      # day: 1,048,576 context, text+image+video in, tools supported,
+      # $0.047 in / $0.16 out per MTok. MoA reference 1, advisor, and FALLBACK 1.
+      - z-ai/glm-5.3-flash
+      # 2026-10-20, on request: "instruct version". NIM lists only the BASE
+      # mistralai/mixtral-8x22b-v0.1, so the instruct model lives here. 65,536
+      # context (NOT the provider-wide figure below), tools supported,
+      # $2 in / $6 out per MTok. MoA reference: support and review.
+      - mistralai/mixtral-8x22b-instruct
     discover_models: false
     # Held at the parent's window rather than the architectural million, for the
     # same reason: raise it to what the endpoint advertises, not the model card.
@@ -332,15 +354,24 @@ fallback_providers:
   # A 429 or an outage on the parent falls through to a different provider rather
   # than stopping. The FIRST link sits on a DIFFERENT bucket from the parent, because
   # a 429 on nvidia-nim cannot be answered from nvidia-nim (CI enforces it). The one
-  # sanctioned later link on the parent's endpoint is fallback 2 below.
+  # sanctioned later link on the parent's endpoint is fallback 3 below.
   #
-  # FALLBACK 1 -- OpenRouter, Qwen3.5-122B-A10B. Independent bucket, cloud speed.
-  # Matches `or-fallback`'s own default_model -- see that entry for why this id.
+  # FALLBACK 1 -- OpenRouter, GLM-5.3 Flash (2026-10-20, on request: "fall back 1 or
+  # 2"). Placed first because the first link must be off NIM and this is the
+  # cheapest, longest-window option there ($0.047/$0.16 per MTok, 1M context).
+  # It is also MoA reference 1, so one id does both jobs on one bucket.
+  - provider: custom
+    model: z-ai/glm-5.3-flash
+    base_url: https://openrouter.ai/api/v1
+    key_env: OPENROUTER_API_KEY
+  # FALLBACK 2 -- OpenRouter, Qwen3.5-122B-A10B. Same endpoint as fallback 1, so it
+  # answers a failure of GLM, not a 429 on OpenRouter. Matches `or-fallback`'s own
+  # default_model, which the two heavy auxiliary slots use -- see that entry.
   - provider: custom
     model: qwen/qwen3.5-122b-a10b
     base_url: https://openrouter.ai/api/v1
     key_env: OPENROUTER_API_KEY
-  # FALLBACK 2 -- nvidia/nemotron-3.5-lightning-30b-a3b on NVIDIA NIM (2026-10-19, on request; replaces
+  # FALLBACK 3 -- nvidia/nemotron-3.5-lightning-30b-a3b on NVIDIA NIM (2026-10-19, on request; replaces
   # the local 49B, which an 8 GB machine cannot load). SAME ENDPOINT AND BUCKET AS THE
   # PARENT: it answers a failure of the parent MODEL (retired id, 5xx), not a 429 and
   # not a NIM-wide outage. Fallback 1 is the 429 escape, so it stays first. This is
@@ -364,7 +395,7 @@ delegation:
   # wrong account. Naming the provider resolves its key_env instead.
   #
   # SUBAGENTS SHARE THE PARENT'S PROVIDER AND MODEL: nemotron-3.5-super-vl-120b-a12b
-  # is the only model this build routes inference to (except the MoA aggregator).
+  # is the primary; the MoA references and fallbacks are the only other models this build routes to.
   # CI enforces the rule: a slot that shares the parent's provider must use the
   # parent's exact model.
   #
@@ -389,16 +420,32 @@ delegation:
 # schemas and without the Hermes system prompt. The aggregator is called once per
 # iteration, the references once per turn.
 #
-# What that means for the one NIM bucket (~40 RPM, shared): on a MoA turn the
-# aggregator takes the PARENT'S place for the tool loop, so the extra NIM
-# requests over a plain turn are the reference calls -- one per user turn. Do not
-# set `fanout: per_iteration` here: it re-runs the reference on every tool step.
+# THE ROSTER (2026-10-20, on request, replacing the 2026-10-19 layout that had Ultra
+# as aggregator and Super VL as the only reference):
 #
-# SAME PROVIDER, DIFFERENT MODEL. Reference and aggregator both sit on
-# custom:nvidia-nim. CI enforces that the aggregator is a different MODEL from every
-# reference, because a MoA whose aggregator is its own reference checks nothing.
-# Honest limit: both are Nemotron 3 family (Super VL 120B-A12B, Ultra 550B-A55B), so
-# this is a bigger-model check, not an independent-lineage one.
+#   aggregator   nemotron-3.5-super-vl-120b-a12b   NIM         acting model, primary generator
+#   reference 1  z-ai/glm-5.3-flash                OpenRouter  advisor; also fallback 1
+#   reference 2  nvidia/ising-calibration-1.5-31b  NIM         vision, quantum, reviewer
+#   reference 3  mistralai/mixtral-8x22b-instruct  OpenRouter  support, review
+#   reference 4  nemotron-3-nano-omni-30b-a3b-reasoning  NIM   advisor, review
+#   reference 5  nemotron-3-ultra-550b-a55b        NIM         reference, research, advisor, reviewer
+#
+# What that means for the NIM bucket (~40 RPM, shared with the parent): THREE of the
+# five references are on NIM (Ising, Omni, Ultra), so a MoA turn costs 3 extra NIM
+# requests per USER turn on top of the aggregator's own calls. GLM and Mixtral sit
+# on OpenRouter and spend a different bucket. Do not set `fanout: per_iteration`
+# here: it would re-run all five on every tool step.
+#
+# Mixtral instruct's window is 65,536, smaller than the provider-wide
+# context_length on or-fallback. References get no tool schemas and no Hermes system
+# prompt, so a normal turn fits; a very long conversation would not. Not measured.
+#
+# DIFFERENT MODEL FROM EVERY REFERENCE. CI enforces that the aggregator is not also a
+# reference (a MoA that checks its own work checks nothing), that the two config
+# shapes agree, and that every reference id is listed under its provider's
+# `models:` (discover_models:false turns an unlisted id into a silent fallback to
+# the main model). Lineages are mixed (Nemotron, GLM, Mixtral, Gemma-4-based Ising),
+# so this is a real independent check, unlike the earlier two-Nemotron layout.
 #
 # TWO SHAPES, KEPT IN STEP. Current Hermes docs put reference_models and
 # aggregator INSIDE each preset (moa.presets.<name>), chosen by
@@ -411,51 +458,59 @@ delegation:
 moa:
   default_preset: default
   reference_models:
-    # Reference model is the same id as the parent, subagents and vision (see the
-    # `nvidia-nim` provider entry).
+    # Roster and reasons are in the header above. Order is the order they advise in.
+    - provider: "custom:or-fallback"
+      model: z-ai/glm-5.3-flash
+      enabled: true
     - provider: "custom:nvidia-nim"
-      model: nvidia/nemotron-3.5-super-vl-120b-a12b
+      model: nvidia/ising-calibration-1.5-31b
+      enabled: true
+    - provider: "custom:or-fallback"
+      model: mistralai/mixtral-8x22b-instruct
+      enabled: true
+    - provider: "custom:nvidia-nim"
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      enabled: true
+    - provider: "custom:nvidia-nim"
+      model: nvidia/nemotron-3-ultra-550b-a55b
       enabled: true
   aggregator:
-    # NVIDIA NEMOTRON 3 ULTRA 550B-A55B, 2026-10-19, on request. Why this id is in
-    # the `nvidia-nim` provider entry beside the live catalog check.
+    # NEMOTRON 3.5 SUPER VL 120B-A12B, the same id as the parent, subagents and
+    # vision (2026-10-20, on request: "Super VL <-- Aggregator and Primary
+    # generator"). It replaces Nemotron 3 Ultra, which held this slot from
+    # 2026-10-19 and is now a reference.
     #
-    # WHAT YOU GIVE UP vs the 120B, stated plainly:
-    #   - TEXT ONLY. Super VL takes images and video; Ultra does not. On a MoA turn
-    #     the acting model is this one, so an attached image reaches it as a file
-    #     path, not pixels (Hermes' MCP docs: "Text-only models get the path
-    #     only"). `vision_analyze` still routes to Super VL via auxiliary.vision.
-    #   - ~4.6x the active parameters per token (55B vs 12B), so expect slower,
-    #     costlier calls. Ultra reasons by default, which adds latency; Hermes has a
-    #     per-slot `reasoning_effort`, but how it maps onto NIM's `enable_thinking`
-    #     / `medium_effort` is UNVERIFIED, so it is deliberately not set here.
-    #   - No local copy: 550B needs ~4x B200 or 8x H100 to self-host. The offline
-    #     tier is the local 3B floor, not this.
+    # WHY THIS HELPS: the aggregator is the ACTING model for the whole tool loop, so
+    # it keeps vision (images arrive as pixels, not file paths) and tool calling, and
+    # each iteration is a 12B-active call instead of a 55B-active one. What it costs:
+    # the final synthesis comes from the smaller model, with five advisers feeding it.
     #
-    # STILL NOT anthropic-direct, and the original reasoning still holds: every
-    # MoA turn would carry a metered $2/$10-per-MTok aggregator on a config whose
-    # thesis is that requests (not money) are the scarce resource. If you want
-    # Claude here it is a one-line deliberate edit (provider
-    # "custom:anthropic-direct", model claude-sonnet-5) -- in BOTH shapes below.
-    #
-    # TO MOVE THIS OFF THE NIM BUCKET: OpenRouter serves the same id
-    # (`nvidia/nemotron-3-ultra-550b-a55b`, $0.50/$2.20 per MTok, 262K paid).
-    # Set provider "custom:or-fallback" in BOTH shapes and add the id to that
-    # provider's `models:` list -- CI rejects an aggregator id its provider does
-    # not list, since discover_models:false turns a wrong id into a silent
-    # fallback to the main model, not an error.
+    # STILL NOT anthropic-direct. If you want Claude here it is a one-line deliberate
+    # edit (provider "custom:anthropic-direct", model claude-sonnet-5) in BOTH shapes.
     provider: "custom:nvidia-nim"
-    model: nvidia/nemotron-3-ultra-550b-a55b
+    model: nvidia/nemotron-3.5-super-vl-120b-a12b
   presets:
     default:
       enabled: true
       reference_models:
+        - provider: "custom:or-fallback"
+          model: z-ai/glm-5.3-flash
+          enabled: true
         - provider: "custom:nvidia-nim"
-          model: nvidia/nemotron-3.5-super-vl-120b-a12b
+          model: nvidia/ising-calibration-1.5-31b
+          enabled: true
+        - provider: "custom:or-fallback"
+          model: mistralai/mixtral-8x22b-instruct
+          enabled: true
+        - provider: "custom:nvidia-nim"
+          model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+          enabled: true
+        - provider: "custom:nvidia-nim"
+          model: nvidia/nemotron-3-ultra-550b-a55b
           enabled: true
       aggregator:
         provider: "custom:nvidia-nim"
-        model: nvidia/nemotron-3-ultra-550b-a55b
+        model: nvidia/nemotron-3.5-super-vl-120b-a12b
 
 # ---------------------------------------------------------------------------
 # RESEARCH BROWSER
@@ -503,10 +558,13 @@ web:
 #
 # Switching mid-session, with the names as they now stand:
 #   /model custom:nvidia-nim:nvidia/nemotron-3.5-super-vl-120b-a12b                      (the parent)
-#   /model custom:nvidia-nim:nvidia/nemotron-3-ultra-550b-a55b                           (the MoA aggregator; text-only)
-#   /model custom:nvidia-nim:nvidia/nemotron-3-nano-omni-30b-a3b-reasoning               (listed, unrouted)
-#   /model custom:or-fallback:qwen/qwen3.5-122b-a10b
-#   /model custom:nvidia-nim:nvidia/nemotron-3.5-lightning-30b-a3b                                          (fallback 2)
+#   /model custom:nvidia-nim:nvidia/nemotron-3-ultra-550b-a55b                           (a MoA reference; text-only)
+#   /model custom:nvidia-nim:nvidia/nemotron-3-nano-omni-30b-a3b-reasoning               (a MoA reference)
+#   /model custom:or-fallback:qwen/qwen3.5-122b-a10b                                           (fallback 2)
+#   /model custom:or-fallback:z-ai/glm-5.3-flash                                              (MoA reference 1, fallback 1)
+#   /model custom:or-fallback:mistralai/mixtral-8x22b-instruct                                (MoA reference)
+#   /model custom:nvidia-nim:nvidia/ising-calibration-1.5-31b                                 (MoA reference)
+#   /model custom:nvidia-nim:nvidia/nemotron-3.5-lightning-30b-a3b                                          (fallback 3)
 #   /model custom:local:hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
 #   /model custom:anthropic-direct:claude-sonnet-5       (needs ANTHROPIC_API_KEY)
 # ---------------------------------------------------------------------------
@@ -874,7 +932,7 @@ compression:
   enabled: true
   threshold: 0.50          # global default, unchanged
   model_thresholds:
-    # Fallback 2 (nvidia/nemotron-3.5-lightning-30b-a3b on NIM). It spends the same ~40 RPM bucket as the
+    # Fallback 3 (nvidia/nemotron-3.5-lightning-30b-a3b on NIM). It spends the same ~40 RPM bucket as the
     # parent, so a compaction costs it the same request; held at the parent's 0.70
     # rather than the 0.50 global default. Not tuned against Lightning's real window.
     "nemotron-3.5-lightning": 0.70
@@ -889,13 +947,11 @@ compression:
     # ~91.7k tokens before the first compaction. Re-tune once that number is
     # measured with scripts/nim-preflight.sh.
     "nemotron-3.5-super-vl": 0.70
-    # MOA AGGREGATOR: nemotron-3-ultra-550b-a55b. On a MoA turn the
-    # aggregator is the ACTING model for the whole tool loop (Hermes docs), so it
-    # is the model whose window compacts -- a key matching only the parent would
-    # leave it on the global 0.50 default. Same reasoning and same number as the
-    # primary: same bucket, same configured window (providers.nvidia-nim.
-    # context_length = 131072, not measured for this model), and CI requires the
-    # key, so removing it fails the build instead of passing silently.
+    # MOA REFERENCE: nemotron-3-ultra-550b-a55b. It was the aggregator (the ACTING
+    # model) until 2026-10-20; now it only advises, once per user turn, so it no
+    # longer needs a raised threshold for MoA. Kept at the primary's 0.70 because
+    # it is still selectable with /model, where it would be the acting model and
+    # would otherwise compact at the global 0.50. CI no longer requires this key.
     "nemotron-3-ultra": 0.70
   target_ratio: 0.20
   tail_mode: lean
