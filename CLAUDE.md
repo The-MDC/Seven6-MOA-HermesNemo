@@ -23,29 +23,35 @@ a ~40 RPM bucket; CI caps its size. Change routing facts in both.
 parent      custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   THE primary model (2026-10-19)
 subagents   custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   same model, same bucket
 vision      custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   pinned, never `auto`
-moa ref     custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b
-aggregator  custom:nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b        the one deliberate exception (2026-10-19), text-only
-fallback 1  custom:or-fallback   qwen/qwen3.5-122b-a10b              429 escape + 2 heavy aux (compression, web_extract)
-fallback 2  custom:nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b               model-level failover (2026-10-19); same bucket as the parent, so it cannot answer a 429
-fallback 3  custom:local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0 (Ollama)   last resort + 5 light aux slots
+aggregator  custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   ACTS on MoA turns (2026-10-20); Ultra held it 2026-10-19
+moa ref 1   custom:or-fallback   z-ai/glm-5.3-flash                       advisor; also fallback 1
+moa ref 2   custom:nvidia-nim    nvidia/ising-calibration-1.5-31b          vision, quantum, reviewer
+moa ref 3   custom:or-fallback   mistralai/mixtral-8x22b-instruct          support, review (NIM lists only the base model)
+moa ref 4   custom:nvidia-nim    nvidia/nemotron-3-nano-omni-30b-a3b-reasoning   advisor, review
+moa ref 5   custom:nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b         reference, research, advisor, reviewer
+fallback 1  custom:or-fallback   z-ai/glm-5.3-flash                        429 escape (same id as moa ref 1)
+fallback 2  custom:or-fallback   qwen/qwen3.5-122b-a10b                    + 2 heavy aux (compression, web_extract)
+fallback 3  custom:nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     model-level failover; same bucket as the parent, cannot answer a 429
+fallback 4  custom:local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0 (Ollama)   last resort + 5 light aux slots
 unrouted    custom:anthropic-direct  claude-sonnet-5                 configured, intact, reachable only via /model
 ```
 
 **Nemotron 3.5 Super VL is the primary model**, on request (2026-10-19: "the
 nemotron 3.5 Super VL should be the only gateway and inference ... leave the other
 inference gateways intact"). OpenRouter, local Ollama and Anthropic-direct stay
-configured; the first two are failover, the third is unrouted. The one other model
-this build routes to is the **MoA aggregator**, `nvidia/nemotron-3-ultra-550b-a55b`
-(2026-10-19, on request): on a MoA turn the aggregator is the ACTING model (it writes
-the reply and runs every tool-loop iteration; the references only advise, once per
-user turn), so it is text-only here, slower per call than Super VL, and on the same
-NIM bucket. CI requires it to differ from every reference, to be listed under its
-provider's `models:`, to carry a raised compaction threshold, and to match between the
-flat `moa.aggregator` key and `moa.presets.<default>.aggregator` -- the two shapes of
-the MoA schema, both written because the installed Hermes version is unconfirmed.
-Capability is mixed, not one-sided: NVIDIA's own tables put Ultra ahead on tau2-bench,
-IFBench and SWE-bench Verified and Super VL ahead on BrowseComp, Terminal-Bench 2.1 and
-GPQA, and Artificial Analysis's index scores Super VL 26 to Ultra's 23.
+configured; the first two are failover, the third is unrouted. On a MoA turn the
+**aggregator is Super VL** (2026-10-20, on request): it is the ACTING model, so it
+writes the reply and runs every tool-loop iteration, and it keeps vision. Five
+**references** only advise, once per user turn: GLM-5.3 Flash and Mixtral 8x22B
+instruct on OpenRouter, Ising-Calibration 1.5 31B, Nemotron 3 Nano Omni and Nemotron 3
+Ultra on NIM. CI requires the aggregator to differ from every reference, every
+reference id to be listed under its provider's `models:`, and the flat
+`moa.aggregator` / `moa.reference_models` keys to match
+`moa.presets.<default>.*` -- the two shapes of the MoA schema, both written because the
+installed Hermes version is unconfirmed. Ising is a quantum-calibration VLM, a
+specialist adviser; `auxiliary.vision` stays on Super VL. Capability is mixed: NVIDIA's
+own tables put Ultra ahead of Super VL on tau2-bench, IFBench and SWE-bench Verified and
+behind on BrowseComp, Terminal-Bench 2.1 and GPQA.
 
 The id `nvidia/nemotron-3.5-super-vl-120b-a12b` was checked against NVIDIA's own
 catalog (`GET https://integrate.api.nvidia.com/v1/models`, HTTP 200, 81 models,
@@ -57,16 +63,16 @@ exact match) on 2026-10-19. It is this gateway's id: the same weights are
 endpoint measurement. The preflight also checks that the reply names the model you
 asked for, because a forum report says the hosted endpoint once did not.
 
-**One bucket now.** Parent, subagents, MoA reference and vision share one ~40 RPM
-NIM key. The CI block enforces the replacement rule: a slot may share the parent's
+**One bucket now.** Parent, subagents, the aggregator, vision and three MoA references
+(Ising, Omni, Ultra) share one ~40 RPM NIM key; a MoA turn costs 3 extra NIM requests.
+The CI block enforces the replacement rule: a slot may share the parent's
 provider only on the parent's exact model, only `vision` among the auxiliaries may,
 and the FIRST `fallback_providers` link must sit on a different endpoint from the
 parent, because a 429 on NIM cannot be answered from NIM. The one named later link back on NIM
 is `nvidia/nemotron-3.5-lightning-30b-a3b`; CI requires it to be non-first, to differ from the parent's model
 and to be listed under `providers.nvidia-nim.models`.
 
-`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` is in the NIM picker and routed
-nowhere. A retired NIM id answers HTTP 410, not a config error, so run
+A retired NIM id answers HTTP 410, not a config error, so run
 `bash scripts/nim-preflight.sh --list | grep -i nemotron` after any NVIDIA model swap.
 
 Three rules that have each cost a session here:

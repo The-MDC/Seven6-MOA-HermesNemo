@@ -20,19 +20,24 @@ request.
 | parent | `custom:nvidia-nim` | `nvidia/nemotron-3.5-super-vl-120b-a12b` | the primary. 120B total / ~12B active, vision-language, live-verified in the NIM catalog 2026-10-19 |
 | subagents | `custom:nvidia-nim` | `nvidia/nemotron-3.5-super-vl-120b-a12b` | same model, same bucket |
 | vision | `custom:nvidia-nim` | `nvidia/nemotron-3.5-super-vl-120b-a12b` | pinned, never `auto`; the primary can see |
-| MoA reference | `custom:nvidia-nim` | `nvidia/nemotron-3.5-super-vl-120b-a12b` | |
-| MoA aggregator | `custom:nvidia-nim` | `nvidia/nemotron-3-ultra-550b-a55b` (550B total / 55B active, text-only) | the one role that is deliberately another model. It is the acting model on a MoA turn, so it runs the tool loop; CI requires it to differ from every reference |
-| fallback 1 | `custom:or-fallback` | `qwen/qwen3.5-122b-a10b` | 429 escape, different bucket |
-| fallback 2 | `custom:nvidia-nim` | `nvidia/nemotron-3.5-lightning-30b-a3b` | answers a failure of the parent MODEL, not a 429: it shares the parent's bucket. Replaced the local 49B on 2026-10-19 (8 GB machine; no hosted endpoint serves the 49B) |
-| fallback 3 / floor | `custom:local` | `hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0` (Ollama) | last resort, plus 5 light auxiliary slots (title, approval, mcp, skills_hub, curator) |
+| MoA aggregator | `custom:nvidia-nim` | `nvidia/nemotron-3.5-super-vl-120b-a12b` | the acting model on a MoA turn and the primary generator (2026-10-20, on request). Ultra held this slot on 2026-10-19 |
+| MoA reference 1 | `custom:or-fallback` | `z-ai/glm-5.3-flash` | advisor; also fallback 1. 1M context, $0.047 / $0.16 per MTok |
+| MoA reference 2 | `custom:nvidia-nim` | `nvidia/ising-calibration-1.5-31b` | vision, quantum, reviewer. A quantum-calibration VLM: a specialist adviser, not the general vision model |
+| MoA reference 3 | `custom:or-fallback` | `mistralai/mixtral-8x22b-instruct` | support, review. 65,536 context, $2 / $6 per MTok. NIM lists only the base model |
+| MoA reference 4 | `custom:nvidia-nim` | `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` | advisor, review |
+| MoA reference 5 | `custom:nvidia-nim` | `nvidia/nemotron-3-ultra-550b-a55b` | reference, research, advisor, reviewer. 550B total / 55B active, text-only |
+| fallback 1 | `custom:or-fallback` | `z-ai/glm-5.3-flash` | 429 escape, different bucket (same id as MoA reference 1) |
+| fallback 2 | `custom:or-fallback` | `qwen/qwen3.5-122b-a10b` | answers a failure of GLM, not a 429 on OpenRouter; also heavy aux |
+| fallback 3 | `custom:nvidia-nim` | `nvidia/nemotron-3.5-lightning-30b-a3b` | answers a failure of the parent MODEL, not a 429: it shares the parent's bucket. Replaced the local 49B on 2026-10-19 (8 GB machine; no hosted endpoint serves the 49B) |
+| fallback 4 / floor | `custom:local` | `hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0` (Ollama) | last resort, plus 5 light auxiliary slots (title, approval, mcp, skills_hub, curator) |
 | heavy aux | `custom:or-fallback` | `qwen/qwen3.5-122b-a10b` | compression, web_extract |
 | unrouted | `custom:anthropic-direct` | `claude-sonnet-5` | reachable only via `/model` |
 
-**What this costs, stated plainly.** Parent, subagents, MoA reference and vision
-draw one ~40 RPM NIM bucket. The CI block requires any slot sharing the parent's provider to use the
+**What this costs, stated plainly.** Parent, subagents, the aggregator, vision and three MoA references (Ising, Omni, Ultra)
+draw one ~40 RPM NIM bucket; a MoA turn adds 3 NIM requests per user turn. The CI block requires any slot sharing the parent's provider to use the
 parent's exact model, and only `vision` among the auxiliary slots may share it. The
 parent no longer runs offline: offline work degrades through `fallback_providers`
-(OpenRouter, then Nemotron 3.5 Lightning on NIM, then the local 3B). The five light auxiliary slots
+(OpenRouter GLM-5.3 Flash, OpenRouter Qwen3.5, Nemotron 3.5 Lightning on NIM, then the local 3B). The five light auxiliary slots
 and the two heavy ones stay off the NIM bucket on purpose, because each is a request
 taken from the parent's RPM. To move them onto the primary too, change their
 `provider`/`model` in `config.yaml`; the CI block will refuse it until the rule is

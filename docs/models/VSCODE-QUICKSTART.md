@@ -6,10 +6,11 @@ bring-up, including MCP servers, is `TAKEOVER.md`; this is the subset you need
 before any of that matters.
 
 **Nemotron 3.5 Super VL is the only primary model (2026-10-19, on request).** The
-parent, subagents, MoA reference and vision all run `nvidia/nemotron-3.5-super-vl-120b-a12b`
+parent, subagents, MoA aggregator and vision all run `nvidia/nemotron-3.5-super-vl-120b-a12b`
 on NVIDIA NIM, so the fast path is cloud-first again: `NVIDIA_API_KEY` is what makes
-Hermes start. The MoA aggregator is the one other model: `nvidia/nemotron-3-ultra-550b-a55b`
-on the same NIM key (text-only, 550B). The local Ollama models are failover only, not the
+Hermes start. Five MoA references advise it (2026-10-20): `z-ai/glm-5.3-flash` and
+`mistralai/mixtral-8x22b-instruct` on OpenRouter (so MoA now needs `OPENROUTER_API_KEY`
+too), and Ising-Calibration, Nano Omni and Ultra on the same NIM key. The local Ollama models are failover only, not the
 parent and not the aggregator, so §2.2 is needed for offline strength, not for MoA or a first reply.
 
 Every step has a **success line**. A step is done when the output matches it —
@@ -118,7 +119,7 @@ classification, tool selection, titles, curation.
 
 The local 49B GGUF (~58.68 GB) was the parent from 2026-09-28 to 2026-10-19 and
 fallback 2 after that. It was removed on 2026-10-19: the target machine has 8 GB of
-RAM, and no hosted endpoint serves that model. Fallback 2 is now
+RAM, and no hosted endpoint serves that model. The NIM fallback (now fallback 3) is
 `nvidia/nemotron-3.5-lightning-30b-a3b` on NVIDIA NIM (§3), which needs no download.
 
 If you only want Hermes conversing, you can stop after 2.1 and §3: the parent is
@@ -149,8 +150,8 @@ OPENROUTER_API_KEY=sk-or-v1-...
 
 | key | from | serves |
 |---|---|---|
-| `OPENROUTER_API_KEY` | openrouter.ai/keys | **fallback 1 + heavy aux** — Qwen3.5-122B-A10B |
-| `NVIDIA_API_KEY` | build.nvidia.com | **the primary: parent + subagents + MoA reference + vision** — nemotron-3.5-super-vl-120b-a12b |
+| `OPENROUTER_API_KEY` | openrouter.ai/keys | **fallbacks 1 and 2, two MoA references, heavy aux** — GLM-5.3 Flash, Mixtral 8x22B instruct, Qwen3.5-122B-A10B |
+| `NVIDIA_API_KEY` | build.nvidia.com | **the primary: parent + subagents + MoA aggregator + vision, plus 3 MoA references** — nemotron-3.5-super-vl-120b-a12b |
 
 `NVIDIA_API_KEY` is strictly required for Hermes to start. Missing
 `OPENROUTER_API_KEY` makes that tier fail over silently rather than error,
@@ -235,11 +236,16 @@ replacement model is a design decision, not a retry.
 parent      nvidia-nim    nemotron-3.5-super-vl-120b-a12b      API only, the primary
 subagents   nvidia-nim    nemotron-3.5-super-vl-120b-a12b      same model, same bucket
 vision      nvidia-nim    nemotron-3.5-super-vl-120b-a12b      pinned; it is a VL model
-moa ref     nvidia-nim    nemotron-3.5-super-vl-120b-a12b
-aggregator  nvidia-nim    nemotron-3-ultra-550b-a55b       API only, text-only, the acting model on MoA turns
-fallback 1  or-fallback   Qwen3.5-122B-A10B      API only, also 2 heavy aux slots
-fallback 2  nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     API only; same bucket as the parent (model-level failover, not a 429 escape)
-fallback 3  local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0
+aggregator  nvidia-nim    nemotron-3.5-super-vl-120b-a12b      the acting model on MoA turns
+moa ref 1   or-fallback   z-ai/glm-5.3-flash                   API only; advisor, also fallback 1
+moa ref 2   nvidia-nim    nvidia/ising-calibration-1.5-31b     API only; vision, quantum, reviewer
+moa ref 3   or-fallback   mistralai/mixtral-8x22b-instruct     API only; support, review
+moa ref 4   nvidia-nim    nvidia/nemotron-3-nano-omni-30b-a3b-reasoning   API only; advisor, review
+moa ref 5   nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b    API only; reference, research, advisor, reviewer
+fallback 1  or-fallback   z-ai/glm-5.3-flash                   API only; the 429 escape
+fallback 2  or-fallback   Qwen3.5-122B-A10B                    API only, also 2 heavy aux slots
+fallback 3  nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     API only; same bucket as the parent (model-level failover, not a 429 escape)
+fallback 4  local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0
                           last resort + 5 light aux slots
 unrouted    anthropic-direct  claude-sonnet-5    configured, intact, via /model only
 ```

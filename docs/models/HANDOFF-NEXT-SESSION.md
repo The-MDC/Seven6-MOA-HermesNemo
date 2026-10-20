@@ -7,7 +7,7 @@ version does not rot the same way. "What is true now" belongs here, and only her
 Anything that must survive a deletion is migrated into this file or into
 `configs/hermes/config.yaml`'s inline comments first (see the removal log below).
 
-Last updated: 2026-10-19 · Branch: `claude/seven6-moa-consolidate` (stacked on
+Last updated: 2026-10-20 · Branch: `claude/seven6-moa-consolidate` (stacked on
 `claude/nemotron-3.5-super-vl-primary`, PR #27) · Super VL is the primary; the
 consolidation and its compensations for Super VL's weak spots are described under
 "Super VL: known weak spots and what compensates".
@@ -33,15 +33,17 @@ parent      custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   THE pr
                                   ("the nemotron 3.5 Super VL should be the only gateway and inference")
 subagents   custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   same model, same bucket
 vision      custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   pinned, never `auto`; it is a VL model
-moa ref     custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b
-aggregator  custom:nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b   (2026-10-19, on request)
-                                  The ONE role that is deliberately not Super VL: 550B total / 55B
-                                  active, TEXT-ONLY, the ACTING model on a MoA turn. Same provider as
-                                  the reference, so CI enforces a different MODEL instead of a
-                                  different provider.
-fallback 1  custom:or-fallback   qwen/qwen3.5-122b-a10b            429 escape, different bucket
-fallback 2  custom:nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b                 model-level failover; same bucket as the parent (no 429 escape)
-fallback 3  custom:local         hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
+aggregator  custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   (2026-10-20, on request) ACTS on a MoA turn;
+                                  Nemotron 3 Ultra held this slot on 2026-10-19
+moa ref 1   custom:or-fallback   z-ai/glm-5.3-flash                       advisor; also fallback 1
+moa ref 2   custom:nvidia-nim    nvidia/ising-calibration-1.5-31b          vision, quantum, reviewer
+moa ref 3   custom:or-fallback   mistralai/mixtral-8x22b-instruct          support, review (NIM lists only the base model)
+moa ref 4   custom:nvidia-nim    nvidia/nemotron-3-nano-omni-30b-a3b-reasoning   advisor, review
+moa ref 5   custom:nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b         reference, research, advisor, reviewer
+fallback 1  custom:or-fallback   z-ai/glm-5.3-flash                        429 escape, different bucket
+fallback 2  custom:or-fallback   qwen/qwen3.5-122b-a10b                    answers a GLM failure, not a 429 on OpenRouter
+fallback 3  custom:nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     model-level failover; same bucket as the parent (no 429 escape)
+fallback 4  custom:local         hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
                                   last resort + the 5 light aux slots
 unrouted    custom:anthropic-direct  claude-sonnet-5, Anthropic's OpenAI-compat endpoint: in providers:
                                   wired into NOTHING; /model custom:anthropic-direct:claude-sonnet-5
@@ -54,18 +56,27 @@ mcp         8 servers, 2 hosted (cloudflare, submcp) on an explicit CI allowlist
             all 8 set prompts:false + resources:false (CI-enforced)
 ```
 
+What changed on 2026-10-20, on request: the MoA roster. Super VL is now the aggregator
+(it keeps vision and tool calling, and each loop iteration is a 12B-active call). Ultra
+moved to a reference alongside GLM-5.3 Flash, Mixtral 8x22B instruct, Ising-Calibration
+1.5 31B and Nano Omni. GLM-5.3 Flash is also fallback 1. Cost: three NIM requests per
+user turn on a MoA turn, plus OpenRouter spend for Mixtral ($2 / $6 per MTok). Not
+measured: whether this key may call the Ising and Omni ids, the OpenRouter ids on this
+account, and Mixtral's 65,536 window against the provider-wide `context_length`.
+The earlier open question below (swap the aggregator and reference roles) is resolved.
+
 What changed on 2026-10-19, and what it cost:
 
-- **One bucket.** Parent, subagents, MoA reference and vision share one ~40 RPM NIM key.
+- **One bucket.** Parent, subagents, aggregator, vision and (from 2026-10-20) three MoA references share one ~40 RPM NIM key.
   `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` stays in the NIM picker and routes
   nowhere. The old fallback 1 (that nano on the same key) left the chain, because a 429
   on the parent hit it too.
 - **No offline parent, and no local 49B.** The 49B GGUF was the parent from 2026-09-28 and
   the MoA aggregator until 2026-10-19, then fallback 2. It was removed the same day: the
   target machine has 8 GB of RAM, and no hosted endpoint serves it (NIM, OpenRouter and
-  DeepInfra catalogs and Hugging Face inference providers checked 2026-10-19). Fallback 2
-  is `nvidia/nemotron-3.5-lightning-30b-a3b` on NIM, on request. It shares the parent's bucket, so it answers
-  a failure of the parent MODEL, not a 429; fallback 1 (OpenRouter) is the 429 escape.
+  DeepInfra catalogs and Hugging Face inference providers checked 2026-10-19). The NIM fallback
+  (now fallback 3) is `nvidia/nemotron-3.5-lightning-30b-a3b` on NIM, on request. It shares the parent's bucket, so it answers
+  a failure of the parent MODEL, not a 429; fallbacks 1 and 2 (OpenRouter) are the 429 escape.
   Offline work now degrades to the 3B floor, and MoA needs NIM.
 - **Context length is unmeasured.** `providers.nvidia-nim.context_length` stays 131072.
   The model card says up to 1M; raise it only to what `scripts/nim-preflight.sh` reports.
@@ -196,9 +207,9 @@ runs it. `docs/models/VSCODE-QUICKSTART.md`, then
 - **`scripts/inventory-local-models.ps1`** — a read-only utility that lists what
   Ollama holds against what the config expects. Nothing links to it; run it before
   trusting a "model is pulled" claim.
-- **MoA is a spend multiplier.** It makes at least two inference calls per turn
-  (references advise once per user turn, then the aggregator acts), on one ~40 RPM
-  NIM bucket. Defensible for hard problems, a bad default. Keep it behind the
+- **MoA is a spend multiplier.** It makes at least six inference calls per turn
+  (five references advise once per user turn, then the aggregator acts), three of them
+  on one ~40 RPM NIM bucket and two on OpenRouter. Defensible for hard problems, a bad default. Keep it behind the
   explicit preset, not on the default path.
 
 ### Deliberately not started
@@ -287,7 +298,7 @@ is a plain-text `active_profile` (absent means `default`), not JSON.
 `nvidia/nemotron-3.5-super-vl-120b-a12b` is the primary. Its model card shows gaps on
 terminal and repo-scale agentic coding (Terminal-Bench 2.1, DeepSWE, SWE-bench Pro),
 instruction following and long-context retrieval against larger or more specialised
-models. Against the Ultra aggregator specifically, NVIDIA's tables put Super VL ahead on
+models. Against Ultra specifically, NVIDIA's tables put Super VL ahead on
 BrowseComp, Terminal-Bench 2.1 and GPQA and behind on tau2-bench, IFBench and
 SWE-bench Verified. Compensations shipped in this repo, each with its limit:
 
@@ -296,11 +307,10 @@ SWE-bench Verified. Compensations shipped in this repo, each with its limit:
 | Per-request prompt weight (12B active, 131k window, ~40 RPM) | `.hermes.md` shadows `CLAUDE.md` for Hermes sessions run from the checkout: ~1.5 KB instead of ~9 KB. CI caps its size and bans Claude-Code-only tool names. | Only applies when the gateway or CLI starts inside the checkout. Hermes loads one project context file. |
 | MCP tool definitions in every request | `tools.tool_search` is pinned `on`. Hermes already defers every `mcp-*` tool and a curated cold list by default, so this pins the behaviour rather than creating it. All 8 servers set `prompts: false` and `resources: false`, which removes 4 utility tools per server from the catalog. | Listing budget numbers are Hermes defaults, not tuned: nothing here measured them. Verified against upstream main on 2026-10-19; the installed Hermes version is unconfirmed (`hermes config check` shows whether it knows the key). |
 | Terminal-heavy, repo-scale coding | Route it to `codex_exec` (the Codex MCP shim). See `codex-handoff.md`. | A policy hypothesis from the model card's gaps. The shim has never run against a real `codex` binary. |
-| Instruction following on the acting turn | The MoA aggregator is Ultra (IFBench 70.86 for Super VL, 82.9 for Ultra). | Ultra is text-only and on the same NIM bucket. |
-| Long-context degradation | Compaction threshold 0.70 for Super VL and Ultra, and `context_length` held at 131072 until measured. | The model card's 1M figure is not an endpoint measurement. |
+| Instruction following on the acting turn | Ultra (IFBench 82.9 vs 70.86 for Super VL) advises as one of five references; it no longer acts. | An adviser's text is input to Super VL, not a guarantee. |
+| Long-context degradation | Compaction threshold 0.70 for Super VL (Ultra's key stays for /model use), and `context_length` held at 131072 until measured. | The model card's 1M figure is not an endpoint measurement. |
 
-Open question owned by the user: swap the aggregator and reference roles
-(Super VL aggregates, Ultra advises) or keep Ultra as the acting model.
+Resolved 2026-10-20, on request: Super VL aggregates and Ultra advises, as one of five references.
 
 ### Candidates, unverified
 

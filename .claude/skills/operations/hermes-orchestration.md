@@ -17,11 +17,12 @@ nothing complained.
 | Tier | Provider key | Serves |
 |---|---|---|
 | parent | `custom:nvidia-nim` | the conversation: `nvidia/nemotron-3.5-super-vl-120b-a12b`, the only primary model (2026-10-19) |
-| subagents, vision, MoA reference | `custom:nvidia-nim` | the same model, the same bucket |
-| MoA aggregator | `custom:nvidia-nim` | `nvidia/nemotron-3-ultra-550b-a55b` (text-only), the one deliberate exception; it is the acting model on a MoA turn |
-| 429 fallback + heavy aux | `custom:or-fallback` | fallback 1; `compression`, `web_extract` |
-| model-level fallback | `custom:nvidia-nim` | fallback 2: `nvidia/nemotron-3.5-lightning-30b-a3b` (same bucket as the parent; answers a model failure, not a 429) |
-| offline fallback | `custom:local` | fallback 3 + 5 light auxiliary slots (3B) |
+| subagents, vision, MoA aggregator | `custom:nvidia-nim` | the same model, the same bucket; the aggregator is the acting model on a MoA turn |
+| MoA references (3 of 5) | `custom:nvidia-nim` | `nvidia/ising-calibration-1.5-31b`, `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`, `nvidia/nemotron-3-ultra-550b-a55b`: they only advise, once per user turn |
+| MoA references (2 of 5) | `custom:or-fallback` | `z-ai/glm-5.3-flash`, `mistralai/mixtral-8x22b-instruct` |
+| 429 fallback + heavy aux | `custom:or-fallback` | fallback 1: `z-ai/glm-5.3-flash`; fallback 2: `qwen/qwen3.5-122b-a10b`; `compression`, `web_extract` |
+| model-level fallback | `custom:nvidia-nim` | fallback 3: `nvidia/nemotron-3.5-lightning-30b-a3b` (same bucket as the parent; answers a model failure, not a 429) |
+| offline fallback | `custom:local` | fallback 4 + 5 light auxiliary slots (3B) |
 | unrouted | `custom:anthropic-direct` | configured, reachable only via `/model` |
 
 `vision` routes to the primary on `custom:nvidia-nim` (a vision-language model), and
@@ -39,8 +40,9 @@ Three structural rules hold it together. Break any one and it fails **silently**
    parent's exact model, only `vision` among the auxiliaries may, and every fallback
    must sit on a different endpoint from the parent. Parent, subagents and vision now
    share one ~40 RPM bucket on purpose; a stray second model id there is how it gets
-   spent unseen. The one sanctioned second NVIDIA id is the MoA aggregator, which CI
-   requires to differ from every MoA reference.
+   spent unseen. The sanctioned extra NVIDIA ids are MoA references, which CI
+   requires to be listed under the provider's `models:`; the aggregator must differ
+   from every reference.
 3. **No auxiliary slot may sit on `auto`.** `auto` means "use the main model", which
    puts side jobs on the parent's bucket — and it is how `vision` broke once, left on
    `auto` after the parent changed to a text-only model.
