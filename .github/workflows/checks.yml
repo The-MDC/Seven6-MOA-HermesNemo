@@ -573,6 +573,21 @@ jobs:
           set -euo pipefail
           python3 scripts/check-capabilities.py
 
+      # cmd.exe closes a parenthesised block at the first bare ")" -- echo text
+      # included. codex-mcp-launch.cmd printed `.Source was unexpected at this time.`
+      # instead of its own error because of one. The negative case proves the check
+      # can fail: a file with the original bug must exit 1.
+      - name: cmd launchers have no unescaped parenthesis in a block
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -I scripts/check-cmd-parens.py scripts/*.cmd
+          bad="$(mktemp)"
+          printf '%s\n' 'if defined X (' '    set "A=1"' ') else (' "    echo (Get-Command node).Source" '    exit /b 9' ')' > "$bad"
+          if python3 -I scripts/check-cmd-parens.py "$bad"; then
+            echo "check-cmd-parens passed a known-bad file"; exit 1
+          fi
+
       # gateway-doctor.js is only a check if it can fail. This builds one home that
       # must pass and two that must fail (a sticky named profile; the 43-byte text a
       # Windows git checkout leaves where a symlink was) and asserts all three exit

@@ -29,7 +29,7 @@ if defined HERMES_CODEX_NODE (
 ) else (
     echo codex-mcp: HERMES_CODEX_NODE is not set. 1>&2
     echo   Set it to the Node runtime this shim should use, for example: 1>&2
-    echo     [Environment]::SetEnvironmentVariable('HERMES_CODEX_NODE',(Get-Command node).Source,'User') 1>&2
+    echo     [Environment]::SetEnvironmentVariable('HERMES_CODEX_NODE',(Get-Command node^).Source,'User'^) 1>&2
     echo   Refusing to guess -- guessing a runtime is what broke hermes-council. 1>&2
     exit /b 9
 )

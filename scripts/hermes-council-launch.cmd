@@ -25,7 +25,7 @@ if defined HERMES_COUNCIL_PYTHON (
 ) else (
     echo hermes-council: HERMES_COUNCIL_PYTHON is not set. 1>&2
     echo   Set it to the interpreter that can import hermes_council, for example: 1>&2
-    echo     [Environment]::SetEnvironmentVariable('HERMES_COUNCIL_PYTHON','C:\Python314\python.exe','User') 1>&2
+    echo     [Environment]::SetEnvironmentVariable('HERMES_COUNCIL_PYTHON','C:\Python314\python.exe','User'^) 1>&2
     echo   Refusing to guess -- guessing an interpreter is what broke this before. 1>&2
     exit /b 9
 )
