@@ -40,8 +40,11 @@
 #                              that ACTS (writes the reply, runs the tool loop) on a
 #                              MoA turn. Text-only -- see the moa: block.
 #   fallback    OpenRouter     Qwen3.5-122B-A10B          1st link in fallback_providers
-#               your laptop    Llama-3.3-Nemotron-Super-49B GGUF (Ollama)
-#                                                         2nd link (offline, full strength)
+#               NVIDIA NIM     nvidia/nemotron-3.5-lightning-30b-a3b         2nd link (2026-10-19, on request;
+#                                                         replaces the local 49B, which an
+#                                                         8 GB machine cannot load). Same
+#                                                         bucket as the parent -- see the
+#                                                         invariant below
 #   floor       your laptop    Hermes-3-Llama-3.2-3B-abliterated:Q8_0 (Ollama)
 #                              last link in fallback_providers, plus the five light
 #                              auxiliary slots (title, approval, mcp, skills_hub,
@@ -51,9 +54,13 @@
 #                              intact, reachable only via /model
 #
 # THE INVARIANT: one model per bucket. A slot may share the parent's provider only on
-# the parent's exact model, and only vision among the auxiliaries may. Every fallback
-# must sit on a different endpoint from the parent, because a 429 on NIM cannot be
-# answered from NIM.
+# the parent's exact model, and only vision among the auxiliaries may. The FIRST
+# fallback must sit on a different endpoint from the parent, because a 429 on NIM
+# cannot be answered from NIM. One named exception, for a LATER link: nvidia/nemotron-3.5-lightning-30b-a3b
+# on NIM (2026-10-19, on request). It spends the parent's bucket, so it answers a
+# model-level failure of the parent (retired id HTTP 410, a 5xx on that model) and NOT
+# a 429. CI requires such a link to be non-first, to differ from the parent's model,
+# and to be listed under providers.nvidia-nim.models.
 #
 # WHY THE OPENROUTER ENTRY IS CALLED or-fallback.
 # `deepseek` and `openrouter` are both in `excluded_providers` below.
@@ -64,16 +71,15 @@
 # excluded is what makes this work.
 #
 # VERIFY BEFORE TRUSTING, things this file cannot check:
-#   1. That Ollama has actually pulled BOTH local models: the floor
-#      (`hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0`) and
-#      fallback-2 49B (`hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL`,
-#      split GGUF, ~58.68 GB) — see the `local` provider's comment for the pull
-#      commands. A model listed here but absent on the machine is exactly the
-#      dangling reference CI rejects in config and cannot detect on disk.
-#      scripts/hermes-verify.ps1 checks both local models.
-#   2. That the box running `local` has the RAM/VRAM for the 49B GGUF when it is
-#      called. It is fallback 2 only, so it only has to load on a failover. See the `local` provider's context_length comment for the
-#      same caveat.
+#   1. That Ollama has actually pulled the floor model
+#      (`hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0`) -- see the
+#      `local` provider's comment for the pull command. A model listed here but
+#      absent on the machine is exactly the dangling reference CI rejects in config
+#      and cannot detect on disk. scripts/hermes-verify.ps1 checks it.
+#   2. That NVIDIA_API_KEY can call nvidia/nemotron-3.5-lightning-30b-a3b (fallback 2). The public
+#      listing says the id exists; it does not say THIS key may call it:
+#          curl -s https://integrate.api.nvidia.com/v1/models/nvidia/nemotron-3.5-lightning-30b-a3b
+#          NVIDIA_NIM_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b bash scripts/nim-preflight.sh
 #   3. That NVIDIA_API_KEY can see BOTH NVIDIA models this file routes to --
 #      the primary and the MoA aggregator:
 #          bash scripts/nim-preflight.sh --list | grep -iE 'super-vl|ultra-550b'
@@ -153,11 +159,22 @@ providers:
     #
     # `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` stays in `models:` for the
     # /model picker and is routed nowhere.
+    # FALLBACK 2: nvidia/nemotron-3.5-lightning-30b-a3b (2026-10-19, on request; replaces the local 49B).
+    # Chosen over z-ai/glm-5.3-flash the same evening, on request ("it may need a smaller or
+    # different model"). 30B total / ~3B active by its id. It is the ONLY Lightning size NIM,
+    # OpenRouter and Hugging Face list; there is no 120B Lightning.
+    # LIVE-VERIFIED: GET /v1/models lists it, and GET /v1/models/nvidia/nemotron-3.5-lightning-30b-a3b
+    # (no key) returned HTTP 200 on 2026-10-19. NOT MEASURED: its context length on
+    # this endpoint (context_length below is provider-wide), its tool-calling
+    # behaviour, whether THIS key may call it, and its rate cap. It shares the
+    # parent's bucket, so it covers a failure of the parent MODEL, not a 429 (see
+    # THE INVARIANT at the top). It is listed here because CI requires it.
     default_model: nvidia/nemotron-3.5-super-vl-120b-a12b
     models:
       - nvidia/nemotron-3.5-super-vl-120b-a12b
       - nvidia/nemotron-3-ultra-550b-a55b
       - nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      - nvidia/nemotron-3.5-lightning-30b-a3b
     discover_models: false
     # nim-preflight.sh reports what the endpoint advertises. Set this to the number
     # it prints. The preflight defaults to the model above; NVIDIA_NIM_MODEL
@@ -169,6 +186,15 @@ providers:
     # measures on this account. A value too LOW wastes window; too HIGH overflows
     # on a rejected request.
     context_length: 131072
+    # NOT ENABLED. NVIDIA's cookbook says tool calling with reasoning on needs
+    # `force_nonempty_content: true` in chat_template_kwargs, or `content` can
+    # come back empty beside a tool call. Whether the HOSTED endpoint accepts
+    # the field is unverified, and a rejection (HTTP 400/422) would fail every
+    # turn on the only gateway. Run `bash scripts/nim-preflight.sh`; when its
+    # "reasoning on + force_nonempty_content" probe prints `ok`, uncomment:
+    # extra_body:
+    #   chat_template_kwargs:
+    #     force_nonempty_content: true
 
   or-fallback:
     name: "OpenRouter"
@@ -216,12 +242,8 @@ providers:
     default_model: hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
     models:
       - hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
-      # Fallback 2 (offline, full strength). Split GGUF, 2 files, 58.68 GB combined,
-      # checked via the Hugging Face Hub (unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF).
-      # `ollama pull hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL`
-      # fetches both parts. Confirm the box has the VRAM/RAM before trusting this
-      # line; the pull is assumed, not verified.
-      - hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL
+      # The 49B Nemotron GGUF (~58.68 GB) was fallback 2 until 2026-10-19. Removed:
+      # the target machine has 8 GB of RAM, and no hosted endpoint serves that model.
     discover_models: false
     # Llama-3.2-3B is text-only (Llama 3.2's vision variants are the 11B/90B line),
     # so there is no local vision. `auxiliary.vision` is cloud-routed; offline
@@ -229,8 +251,8 @@ providers:
     #
     # KV cache is what hurts on a laptop, not the weights, so this sits far below
     # the model's native window. Raise it only as far as RAM tolerates. It was
-    # sized for the 3B floor model; the 49B (fallback 2) shares it. 32768 is a
-    # conservative floor that runs on both, not a measured optimum for the 49B.
+    # sized for the 3B floor model. 32768 is a conservative floor, not a measured
+    # optimum.
     context_length: 32768
 
   anthropic-direct:
@@ -308,8 +330,9 @@ model:
 
 fallback_providers:
   # A 429 or an outage on the parent falls through to a different provider rather
-  # than stopping. Every link below sits on a DIFFERENT bucket from the parent,
-  # because a 429 on nvidia-nim cannot be answered from nvidia-nim (CI enforces it).
+  # than stopping. The FIRST link sits on a DIFFERENT bucket from the parent, because
+  # a 429 on nvidia-nim cannot be answered from nvidia-nim (CI enforces it). The one
+  # sanctioned later link on the parent's endpoint is fallback 2 below.
   #
   # FALLBACK 1 -- OpenRouter, Qwen3.5-122B-A10B. Independent bucket, cloud speed.
   # Matches `or-fallback`'s own default_model -- see that entry for why this id.
@@ -317,14 +340,15 @@ fallback_providers:
     model: qwen/qwen3.5-122b-a10b
     base_url: https://openrouter.ai/api/v1
     key_env: OPENROUTER_API_KEY
-  # FALLBACK 2 -- the local 49B Nemotron GGUF. Keeps a full-strength tier alive when
-  # the network is down. No rate limit, no key. Needs the GGUF pulled (see
-  # providers.local) and the RAM/VRAM for it -- it is on the failure path, not the
-  # hot path, so it only has to load when called.
+  # FALLBACK 2 -- nvidia/nemotron-3.5-lightning-30b-a3b on NVIDIA NIM (2026-10-19, on request; replaces
+  # the local 49B, which an 8 GB machine cannot load). SAME ENDPOINT AND BUCKET AS THE
+  # PARENT: it answers a failure of the parent MODEL (retired id, 5xx), not a 429 and
+  # not a NIM-wide outage. Fallback 1 is the 429 escape, so it stays first. This is
+  # NIM's id for the model, not another gateway's -- see providers.nvidia-nim.
   - provider: custom
-    model: hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL
-    base_url: http://127.0.0.1:11434/v1
-    api_key: "no-key-required"
+    model: nvidia/nemotron-3.5-lightning-30b-a3b
+    base_url: https://integrate.api.nvidia.com/v1
+    key_env: NVIDIA_API_KEY
   # LAST RESORT, and the cheapest to run offline. Much smaller than anything above
   # it; nothing can rate-limit it.
   - provider: custom
@@ -406,7 +430,7 @@ moa:
     #     per-slot `reasoning_effort`, but how it maps onto NIM's `enable_thinking`
     #     / `medium_effort` is UNVERIFIED, so it is deliberately not set here.
     #   - No local copy: 550B needs ~4x B200 or 8x H100 to self-host. The offline
-    #     tier is the 49B (fallback 2), not this.
+    #     tier is the local 3B floor, not this.
     #
     # STILL NOT anthropic-direct, and the original reasoning still holds: every
     # MoA turn would carry a metered $2/$10-per-MTok aggregator on a config whose
@@ -482,7 +506,7 @@ web:
 #   /model custom:nvidia-nim:nvidia/nemotron-3-ultra-550b-a55b                           (the MoA aggregator; text-only)
 #   /model custom:nvidia-nim:nvidia/nemotron-3-nano-omni-30b-a3b-reasoning               (listed, unrouted)
 #   /model custom:or-fallback:qwen/qwen3.5-122b-a10b
-#   /model custom:local:hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL   (fallback 2, offline)
+#   /model custom:nvidia-nim:nvidia/nemotron-3.5-lightning-30b-a3b                                          (fallback 2)
 #   /model custom:local:hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
 #   /model custom:anthropic-direct:claude-sonnet-5       (needs ANTHROPIC_API_KEY)
 # ---------------------------------------------------------------------------
@@ -850,12 +874,10 @@ compression:
   enabled: true
   threshold: 0.50          # global default, unchanged
   model_thresholds:
-    # Fallback 2 (the local 49B). The CI check requires a threshold keyed to the
-    # parent, and a model that compacts at the global 0.50 default is the quiet
-    # failure this block exists to stop. 0.65, not higher: providers.local.
-    # context_length is 32768, so there is little room to defer compaction into.
-    # Re-tune once that number is re-tuned for the 49B.
-    "Nemotron-Super-49B-v1_5": 0.65
+    # Fallback 2 (nvidia/nemotron-3.5-lightning-30b-a3b on NIM). It spends the same ~40 RPM bucket as the
+    # parent, so a compaction costs it the same request; held at the parent's 0.70
+    # rather than the 0.50 global default. Not tuned against Lightning's real window.
+    "nemotron-3.5-lightning": 0.70
     # PARENT: nemotron-3.5-super-vl-120b-a12b on NIM. The CI check resolves a key
     # against the parent id by case-insensitive substring, longest key wins, so
     # this one has to be a substring of the parent id.

@@ -40,7 +40,7 @@ aggregator  custom:nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b   (2026-10-19
                                   the reference, so CI enforces a different MODEL instead of a
                                   different provider.
 fallback 1  custom:or-fallback   qwen/qwen3.5-122b-a10b            429 escape, different bucket
-fallback 2  custom:local         hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL   offline, full strength
+fallback 2  custom:nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b                 model-level failover; same bucket as the parent (no 429 escape)
 fallback 3  custom:local         hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
                                   last resort + the 5 light aux slots
 unrouted    custom:anthropic-direct  claude-sonnet-5, Anthropic's OpenAI-compat endpoint: in providers:
@@ -60,9 +60,13 @@ What changed on 2026-10-19, and what it cost:
   `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` stays in the NIM picker and routes
   nowhere. The old fallback 1 (that nano on the same key) left the chain, because a 429
   on the parent hit it too.
-- **No offline parent.** The 49B GGUF was the parent from 2026-09-28 and the MoA
-  aggregator until 2026-10-19; it is now fallback 2 only. Offline work degrades through
-  the chain instead of continuing at full strength, and MoA needs NIM.
+- **No offline parent, and no local 49B.** The 49B GGUF was the parent from 2026-09-28 and
+  the MoA aggregator until 2026-10-19, then fallback 2. It was removed the same day: the
+  target machine has 8 GB of RAM, and no hosted endpoint serves it (NIM, OpenRouter and
+  DeepInfra catalogs and Hugging Face inference providers checked 2026-10-19). Fallback 2
+  is `nvidia/nemotron-3.5-lightning-30b-a3b` on NIM, on request. It shares the parent's bucket, so it answers
+  a failure of the parent MODEL, not a 429; fallback 1 (OpenRouter) is the 429 escape.
+  Offline work now degrades to the 3B floor, and MoA needs NIM.
 - **Context length is unmeasured.** `providers.nvidia-nim.context_length` stays 131072.
   The model card says up to 1M; raise it only to what `scripts/nim-preflight.sh` reports.
 - **Unverified claim to settle.** A forum report says the hosted endpoint once answered
@@ -242,6 +246,17 @@ hermes config check
 `.env` is not touched; keys the named profile held in its own `.env` must exist in the
 default one (`%LOCALAPPDATA%\hermes\.env`). Do not run `hermes profile use seven6moa`:
 that is the command that reproduces exit 78.
+
+**Desktop plugin "failed to load: Unexpected token '.'" (diagnosed 2026-10-19).** The
+catalog pins `hermes-project-stewardship` at commit `f10e713` (v0.5.2), where
+`desktop/plugin.js` is a git symlink (mode 120000). Git on Windows writes a symlink as a
+43-byte text file holding the target, `../hermes_dockyard_plugin/desktop/plugin.js`, and
+Desktop evaluates that text as JavaScript. The plugin's later commit `687bb03` ships a
+real 1.6 MB file that passes `node --check`. Fix: `hermes plugins remove
+hermes-project-stewardship`, then reinstall from the repository URL (check
+`hermes plugins install --help` for the argument form), or `hermes plugins disable
+hermes-project-stewardship`. `node scripts/gateway-doctor.js` reports this stub, and a
+sticky `active_profile`, on the box; CI proves both detectors can fail.
 
 **Keep only `default` and `seven6moa` (2026-10-19, on request).** Hermes cannot delete
 `default`; every other profile and MoA preset can go. List first, then delete by name.
