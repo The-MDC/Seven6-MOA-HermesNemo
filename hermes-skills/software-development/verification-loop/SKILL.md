@@ -9,7 +9,7 @@ metadata:
   hermes:
     tags: [Verification, Quality-Gate, CI, Testing]
     category: software-development
-    related_skills: [api-design, backend-patterns, frontend-design, mcp-builder, mcp-server-patterns]
+    related_skills: [api-design, backend-patterns, mcp-builder, mcp-server-patterns]
 ---
 
 # Verification Loop

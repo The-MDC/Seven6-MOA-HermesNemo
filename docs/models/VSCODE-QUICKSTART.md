@@ -1,8 +1,7 @@
 # VS Code quickstart — local tier + cloud tiers, on Windows
 
 The fast path. Gets the local floor model
-(`hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0`, swapped from
-`hermes3:8b` 2026-09-25) and the cloud tiers working, and nothing else. The full
+(`hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0`) and the cloud tiers working, and nothing else. The full
 bring-up, including MCP servers, is `TAKEOVER.md`; this is the subset you need
 before any of that matters.
 
@@ -12,18 +11,15 @@ on NVIDIA NIM, so the fast path is cloud-first again: `NVIDIA_API_KEY` is what m
 Hermes start. The MoA aggregator is the one other model: `nvidia/nemotron-3-ultra-550b-a55b`
 on the same NIM key (text-only, 550B). The local Ollama models are failover only, not the
 parent and not the aggregator, so §2.2 is needed for offline strength, not for MoA or a first reply.
-DeepSeek and the `hf-router` provider stay removed (2026-09-28); `HF_TOKEN` is gone.
 
 Every step has a **success line**. A step is done when the output matches it —
 not when the command exits without complaining. That distinction is the whole
 reason this file is written out rather than improvised: a wrong chat template
 still chats, and a dangling model reference still answers, just on the wrong model.
 
-Total download: about 3.4 GB. Budget a few minutes on a normal connection --
-smaller and faster than the hermes3:8b pull this replaced (~4.7 GB), and there
-is no second local service to set up: no llama-server, no build-floor check, no
-`--mmproj`. That used to be a separate phase this file did not cover at all;
-now it doesn't exist to cover.
+Total download: about 3.4 GB. Budget a few minutes on a normal connection. There is
+no second local service to set up: no llama-server, no build-floor check, no
+`--mmproj`.
 
 ---
 
@@ -46,12 +42,11 @@ $PSVersionTable.PSVersion.Major
 
 ```powershell
 cd $HOME
-git clone https://github.com/The-MDC/hermes-codex-build.git
-cd hermes-codex-build
-git checkout claude/lucid-noether-0ui54b
+git clone https://github.com/The-MDC/seven6-hermes-moa.git
+cd seven6-hermes-moa
 ```
 
-**Success:** `git log -1 --oneline` names a `hermes:` or `ci:` commit.
+**Success:** `git log -1 --oneline` prints a commit, and `.hermes.md` exists in the folder.
 
 Then **File → Open Folder** on that directory, so the Claude Code extension picks
 up `CLAUDE.md` and the repo's skills. Install the extension from the Marketplace
@@ -113,29 +108,21 @@ ollama pull hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
 Pulled straight from Hugging Face via Ollama's own `hf.co/` feature -- needs a
 reasonably current Ollama; check `ollama --version` if the pull is rejected.
 **Success:** `ollama list` shows the full tag above. Note it is an "abliterated"
-(refusal-removed) fine-tune -- a real behavior change from hermes3:8b, not just
-a smaller download, and it now backs every slot below including `approval`.
+(refusal-removed) fine-tune -- a real behavior change, not just a smaller
+download, and it backs every slot below including `approval`.
 
 This one model already unblocks five of the eight auxiliary slots — routing,
 classification, tool selection, titles, curation.
 
-### 2.2 — Local 49B (offline fallback)
+### 2.2 — The 49B is no longer part of this build
 
-```powershell
-ollama pull hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL
-```
-
-Split GGUF, 2 files, ~58.68 GB combined -- an order of magnitude past the
-support model above. It was the parent from 2026-09-28 to 2026-10-19 and, until
-the same day, the MoA aggregator; it is now `fallback_providers` link 2 only
-(offline, full strength).
-Confirm real disk space and VRAM/RAM headroom before pulling -- this is
-not a "fast path" download in the way the 3.4 GB support model is.
-**Success:** `ollama list` shows the full tag above.
+The local 49B GGUF (~58.68 GB) was the parent from 2026-09-28 to 2026-10-19 and
+fallback 2 after that. It was removed on 2026-10-19: the target machine has 8 GB of
+RAM, and no hosted endpoint serves that model. Fallback 2 is now
+`nvidia/nemotron-3.5-lightning-30b-a3b` on NVIDIA NIM (§3), which needs no download.
 
 If you only want Hermes conversing, you can stop after 2.1 and §3: the parent is
-on NIM. Skipping this model costs the offline tiers only, and
-§4's verification will report the 49B as missing.
+on NIM.
 
 ## 3. Cloud tiers
 
@@ -152,7 +139,7 @@ $envFile
 
 ### 3.2 — Add the keys
 
-Open it in VS Code — `code $envFile` — and add three lines. **Paste the values in
+Open it in VS Code — `code $envFile` — and add two lines. **Paste the values in
 the editor, never into a terminal**, so they do not land in shell history:
 
 ```
@@ -165,7 +152,6 @@ OPENROUTER_API_KEY=sk-or-v1-...
 | `OPENROUTER_API_KEY` | openrouter.ai/keys | **fallback 1 + heavy aux** — Qwen3.5-122B-A10B |
 | `NVIDIA_API_KEY` | build.nvidia.com | **the primary: parent + subagents + MoA reference + vision** — nemotron-3.5-super-vl-120b-a12b |
 
-No `HF_TOKEN` anymore -- the `hf-router` provider it served is removed entirely.
 `NVIDIA_API_KEY` is strictly required for Hermes to start. Missing
 `OPENROUTER_API_KEY` makes that tier fail over silently rather than error,
 which is why step 4 checks it explicitly.
@@ -191,7 +177,7 @@ inside Hermes specifically.
 ### 3.3 — Install the config
 
 ```powershell
-cd $HOME\hermes-codex-build
+cd $HOME\seven6-hermes-moa
 pwsh -File scripts\hermes-apply.ps1 -WhatIf     # look first
 pwsh -File scripts\hermes-apply.ps1
 ```
@@ -224,7 +210,8 @@ completion alone cannot tell a wrong model id from an exhausted quota, and those
 need opposite fixes.
 
 **This is the step that answers the one thing CI structurally cannot:** whether
-Ollama actually has the 49B GGUF loaded and serving (§2.2), and
+Ollama actually has the floor model loaded and serving (§2.1), whether
+`nvidia/nemotron-3.5-lightning-30b-a3b` is callable with your NVIDIA key, and
 whether `qwen/qwen3.5-122b-a10b` is actually on OpenRouter. Neither is
 verifiable from the build container.
 
@@ -251,23 +238,19 @@ vision      nvidia-nim    nemotron-3.5-super-vl-120b-a12b      pinned; it is a V
 moa ref     nvidia-nim    nemotron-3.5-super-vl-120b-a12b
 aggregator  nvidia-nim    nemotron-3-ultra-550b-a55b       API only, text-only, the acting model on MoA turns
 fallback 1  or-fallback   Qwen3.5-122B-A10B      API only, also 2 heavy aux slots
-fallback 2  local         Llama-3.3-Nemotron-Super-49B-v1.5, UD-Q8_K_XL   Ollama, §2.2; offline, full strength
+fallback 2  nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     API only; same bucket as the parent (model-level failover, not a 429 escape)
 fallback 3  local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0
-                          last resort + 5 light aux slots (swapped from hermes3:8b)
+                          last resort + 5 light aux slots
 unrouted    anthropic-direct  claude-sonnet-5    configured, intact, via /model only
 ```
 
-The total download is now the 3.4 GB floor model, plus the ~58.68 GB 49B only if you
-want the offline tier.
+The total download is the 3.4 GB floor model.
 
 Not covered here, deliberately: the seven MCP servers, `hermes-council`'s
 dependency fault, and the Codex bridge handshake. None of them gate the model
 tiers. `scripts\hermes-blockers.ps1` diagnoses the last two without changing
 anything, and `TAKEOVER.md` phases 3–6 cover the rest.
 
-**There is no separate vision tier to set up.** `local-vl` (nemotron-nano-12b-v2-vl,
-llama.cpp on :8080) was retired 2026-09-25 along with hermes3:8b, and `vision` now
-routes to `custom:nvidia-nim` / `nvidia/nemotron-3.5-super-vl-120b-a12b` (2026-10-19):
-the primary is a vision-language model, so it replaces the image-only
-`nvidia/ising-calibration-1.5-31b` that held the slot from 2026-09-27. Vision still
-fails the way every cloud tier does, with no network.
+**There is no separate vision tier to set up.** `vision` routes to
+`custom:nvidia-nim` / `nvidia/nemotron-3.5-super-vl-120b-a12b`: the primary is a
+vision-language model. Vision fails the way every cloud tier does, with no network.

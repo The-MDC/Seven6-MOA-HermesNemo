@@ -1,4 +1,4 @@
-# Hermes Agent -- Seven6-Hermes-MOA. One primary model, NVIDIA Nemotron 3.5 Super VL
+# Hermes Agent -- Seven6-MOA [Nemo-Hermes]. One primary model, NVIDIA Nemotron 3.5 Super VL
 # on NVIDIA NIM, serves every role that routes inference; OpenRouter and local
 # Ollama are failover, and Anthropic-direct is kept configured but unrouted.
 #
@@ -10,7 +10,6 @@
 # NO KEY GOES IN THIS FILE. Every remote provider reads `key_env`. Put them in
 # ~/.hermes/.env (chmod 600) or export them:
 #     NVIDIA_API_KEY=nvapi-...      https://build.nvidia.com  -> "Get API Key"
-#     HF_TOKEN=hf_...               https://huggingface.co/settings/tokens
 #     OPENROUTER_API_KEY=sk-or-v1-...   https://openrouter.ai/keys
 #     ANTHROPIC_API_KEY=sk-ant-...  https://console.anthropic.com/settings/keys
 #       Optional. Enables `anthropic-direct` (see providers: below), which is NOT
@@ -23,16 +22,14 @@
 # The local tier needs no key at all — it is a server on your own machine.
 #
 # ---------------------------------------------------------------------------
-# THE SHAPE, AND WHY IT CHANGED
+# THE SHAPE
 #
-# This replaces the Kimi-K3 topology. See docs/models/handoff-2026-09-22.md for
-# what was actually deployed and how it had drifted; this file is the reconciled
-# target, not a record of either side.
+# Current state and open items: docs/models/HANDOFF-NEXT-SESSION.md. This file is the
+# reconciled target, not a record of what any deployment drifted into.
 #
 #   parent      NVIDIA NIM     nemotron-3.5-super-vl-120b-a12b  -- THE primary model,
 #                              2026-10-19, on request ("the nemotron 3.5 Super VL
-#                              should be the only gateway and inference"). Replaces
-#                              the local 49B Nemotron GGUF (parent 2026-09-28).
+#                              should be the only gateway and inference")
 #   subagents   NVIDIA NIM     nemotron-3.5-super-vl-120b-a12b  same model, same bucket
 #   vision      NVIDIA NIM     nemotron-3.5-super-vl-120b-a12b  it is a VL model;
 #                              pinned, never `auto` -- see auxiliary.vision
@@ -43,8 +40,11 @@
 #                              that ACTS (writes the reply, runs the tool loop) on a
 #                              MoA turn. Text-only -- see the moa: block.
 #   fallback    OpenRouter     Qwen3.5-122B-A10B          1st link in fallback_providers
-#               your laptop    Llama-3.3-Nemotron-Super-49B GGUF (Ollama)
-#                                                         2nd link (offline, full strength)
+#               NVIDIA NIM     nvidia/nemotron-3.5-lightning-30b-a3b         2nd link (2026-10-19, on request;
+#                                                         replaces the local 49B, which an
+#                                                         8 GB machine cannot load). Same
+#                                                         bucket as the parent -- see the
+#                                                         invariant below
 #   floor       your laptop    Hermes-3-Llama-3.2-3B-abliterated:Q8_0 (Ollama)
 #                              last link in fallback_providers, plus the five light
 #                              auxiliary slots (title, approval, mcp, skills_hub,
@@ -53,61 +53,33 @@
 #   unrouted    Anthropic      claude-sonnet-5            anthropic-direct: configured,
 #                              intact, reachable only via /model
 #
-# DEEPSEEK IS FULLY REMOVED FROM THIS BUILD as of 2026-09-28, on request,
-# repo-wide -- parent was the last role that still had it. The `hf-router`
-# provider it lived on is removed too, not left dangling with nothing to serve.
+# THE INVARIANT: one model per bucket. A slot may share the parent's provider only on
+# the parent's exact model, and only vision among the auxiliaries may. The FIRST
+# fallback must sit on a different endpoint from the parent, because a 429 on NIM
+# cannot be answered from NIM. One named exception, for a LATER link: nvidia/nemotron-3.5-lightning-30b-a3b
+# on NIM (2026-10-19, on request). It spends the parent's bucket, so it answers a
+# model-level failure of the parent (retired id HTTP 410, a 5xx on that model) and NOT
+# a 429. CI requires such a link to be non-first, to differ from the parent's model,
+# and to be listed under providers.nvidia-nim.models.
 #
-# THE VISION-ON-A-SEPARATE-SERVER TIER THAT USED TO SIT HERE IS GONE, retired
-# 2026-09-25 along with hermes3:8b and nemotron-nano-12b-v2-vl, on request ("remove
-# hermes 8B and the 12b"). The reasoning below is kept because it explains a real
-# decision this repo made and later reversed, not because it still describes this
-# file -- there is no `local-vl` provider anymore, and nothing here runs llama.cpp.
-#
-# Importing a VL GGUF plus its separate mmproj projector through an Ollama Modelfile
-# has a documented history of failing SILENTLY: in ollama#9967 the projector shows up
-# in `ollama show` and image input still errors "this model is missing data required
-# for image input". That is the failure mode that mattered -- create succeeds, vision
-# is gone. Stated carefully, because the citation was narrower than a blanket claim:
-# #9967 is Gemma3 (Mar 2025, closed) and ollama#14730 is qwen35moe (closed as a
-# duplicate, root-caused to that architecture's clip runner). Neither established
-# that Ollama can NEVER do it, and neither said anything about nemotron_v2_vl -- what
-# they established was a real risk of silent capability loss on that exact path,
-# which is why this repo ran a second server (llama.cpp) rather than an Ollama tag
-# for as long as it carried vision locally at all.
-#
-# THE INVARIANT, AS OF 2026-10-19: one model per bucket. It used to be "a
-# different rate-limit bucket from the parent" -- first a loopback host, then
-# "subagents avoid NIM", then (parent on local) "NIM is the children's own
-# bucket". Each of those encoded the topology of its day. The parent is on NIM
-# now, by request, so subagents and vision share its bucket and the rule the CI
-# block enforces is narrower: a slot may share the parent's provider only on the
-# parent's exact model, and only vision among the auxiliaries may. Every
-# fallback must sit on a different endpoint from the parent, because a 429 on
-# NIM cannot be answered from NIM.
-#
-# WHY DEEPSEEK'S OLD FALLBACK ROUTES THROUGH or-fallback AND NOT BY NAME.
+# WHY THE OPENROUTER ENTRY IS CALLED or-fallback.
 # `deepseek` and `openrouter` are both in `excluded_providers` below.
 # `excluded_providers` matches case-insensitively against every key a provider
-# can surface under, so naming either directly — `provider: deepseek`, or an
-# entry called `openrouter` — would be hidden by its own exclusion and silently
+# can surface under, so naming either directly -- `provider: deepseek`, or an
+# entry called `openrouter` -- would be hidden by its own exclusion and silently
 # resolve to the main model. Routing through a provider whose NAME is not
-# excluded is what makes this work, which is why that entry is `or-fallback`
-# rather than `openrouter`, even though DeepSeek itself is gone from it now.
+# excluded is what makes this work.
 #
 # VERIFY BEFORE TRUSTING, things this file cannot check:
-#   1. That Ollama has actually pulled BOTH local models: the floor
-#      (`hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0`) and
-#      fallback-2 49B (`hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL`,
-#      split GGUF, ~58.68 GB) — see the `local` provider's comment for the pull
-#      commands. A model listed here but absent on the machine is exactly the
-#      dangling reference CI rejects in config and cannot detect on disk.
-#      scripts/hermes-verify.ps1 checks this the same way it always has; it
-#      just now has two local models to check instead of one.
-#   2. That the box running `local` has the RAM/VRAM for the 49B GGUF when it is
-#      called. Since 2026-10-19 it is fallback 2 only (it was the MoA aggregator
-#      until the aggregator moved to NIM the same day), so it only has to load
-#      on a failover. See the `local` provider's context_length comment for the
-#      same caveat.
+#   1. That Ollama has actually pulled the floor model
+#      (`hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0`) -- see the
+#      `local` provider's comment for the pull command. A model listed here but
+#      absent on the machine is exactly the dangling reference CI rejects in config
+#      and cannot detect on disk. scripts/hermes-verify.ps1 checks it.
+#   2. That NVIDIA_API_KEY can call nvidia/nemotron-3.5-lightning-30b-a3b (fallback 2). The public
+#      listing says the id exists; it does not say THIS key may call it:
+#          curl -s https://integrate.api.nvidia.com/v1/models/nvidia/nemotron-3.5-lightning-30b-a3b
+#          NVIDIA_NIM_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b bash scripts/nim-preflight.sh
 #   3. That NVIDIA_API_KEY can see BOTH NVIDIA models this file routes to --
 #      the primary and the MoA aggregator:
 #          bash scripts/nim-preflight.sh --list | grep -iE 'super-vl|ultra-550b'
@@ -120,113 +92,89 @@
 
 providers:
 
-  # `hf-router` (Hugging Face Inference Providers) REMOVED 2026-09-28. It existed
-  # for exactly one reason -- serving deepseek-ai/DeepSeek-V4-Pro as the parent --
-  # and DeepSeek is gone from this build entirely. The parent moved to `local`
-  # instead (see `model:` below), not to another cloud bucket, so this provider
-  # has nothing left to serve. Full history (the router's own coverage numbers,
-  # the exclusion-safety reasoning for the `hf-router` name) is in git blame if
-  # a Hugging Face route is ever needed again -- add it back deliberately, with
-  # a real model in mind, rather than leaving a bucket declared for nothing.
-
   nvidia-nim:
     name: "NVIDIA NIM (build.nvidia.com)"
     api: https://integrate.api.nvidia.com/v1
     key_env: NVIDIA_API_KEY
     transport: chat_completions
-    # SWAPPED 2026-09-27, on discovery: nvidia/llama-3.3-nemotron-super-49b-v1.5
-    # (added 2026-09-25 to replace Nemotron-3-Super-120B-A12B) is DEAD. Not
-    # "unverified" -- a real Hermes session on this NIM account hit it live via
-    # `/moa` and got back HTTP 410 Gone: "The model
-    # 'nvidia/llama-3.3-nemotron-super-49b-v1.5' has reached its end of life on
-    # 2026-08-26T09:00:00Z and is no longer available." It had been dead for a
-    # month before this file's own "triangulated against three resellers"
-    # comment was written -- the triangulation was wrong, and the self-verify
-    # command this comment used to point at (nim-preflight.sh --list) would have
-    # caught this immediately if it had ever been run. Run it after every
-    # NVIDIA model swap from now on, not just when something looks wrong:
+    # Run after every NVIDIA model swap -- a retired id answers HTTP 410, not a
+    # config error:
     #     bash scripts/nim-preflight.sh --list | grep -i nemotron
     #
     # PRIMARY MODEL, 2026-10-19, on request: nvidia/nemotron-3.5-super-vl-120b-a12b
     # carries parent, subagents, MoA reference and vision (see model:, delegation:,
     # moa:, auxiliary.vision). The one other model routed to is the MoA AGGREGATOR,
-    # nvidia/nemotron-3-ultra-550b-a55b, added the same day on request (below).
-    # Everything else in this file is either an unrouted gateway kept intact on
-    # request (anthropic-direct), failover only (or-fallback, local), or a
-    # deliberate non-NIM side job (see auxiliary:).
+    # nvidia/nemotron-3-ultra-550b-a55b (below). Everything else in this file is an
+    # unrouted gateway kept intact on request (anthropic-direct), failover only
+    # (or-fallback, local), or a deliberate non-NIM side job (see auxiliary:).
     #
-    # LIVE-VERIFIED, not triangulated: GET https://integrate.api.nvidia.com/v1/models
-    # (no key needed) returned HTTP 200 with 81 models on 2026-10-19 and listed
-    # exactly this id. 120B total / ~12B active ("a12b"), hybrid Mamba-2 + MoE +
-    # attention, vision-language (image, video, text in; text out), up to 1M tokens
-    # per the model card. This id is THIS GATEWAY'S. The same weights carry other
-    # ids elsewhere -- do not paste these into this entry:
+    # LIVE-VERIFIED: GET https://integrate.api.nvidia.com/v1/models (no key needed)
+    # returned HTTP 200 with 81 models on 2026-10-19 and listed exactly this id.
+    # 120B total / ~12B active ("a12b"), hybrid Mamba-2 + MoE + attention,
+    # vision-language (image, video, text in; text out), up to 1M tokens per the
+    # model card. This id is THIS GATEWAY'S. The same weights carry other ids
+    # elsewhere -- do not paste these into this entry:
     #     Vercel AI Gateway           nvidia/nemotron-3.5-super-vl
     #     Hugging Face / Baseten      nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B
     #     local served alias          nemotron-3.5-super-vl
     # A forum report says the hosted endpoint once answered under a different
-    # model id than the one requested. UNVERIFIED -- confirm on this account with
-    # the live call in scripts/nim-preflight.sh (it now probes this id).
+    # model id than the one requested. UNVERIFIED -- scripts/nim-preflight.sh
+    # probes this id and checks the reply names it.
     #
     # SAMPLING: NVIDIA's card recommends temperature 1.0, top_p 0.95; model:
     # below is set to match. Reasoning is toggled per request (`enable_thinking`),
     # not by a different id.
     #
-    # ONE BUCKET NOW. Parent, subagents, MoA reference, vision and the MoA
-    # aggregator all spend this key's ~40 RPM together. The old rule "children get
-    # their own bucket" was traded away on request; the CI block now requires any
-    # auxiliary or delegation slot sharing the parent's provider to use the SAME
-    # model as the parent (one model, one bucket, no stray second NIM id). The MoA
-    # aggregator is the single sanctioned exception; the CI block requires it to be
-    # listed here and to differ from every MoA reference. A fan-out can starve the parent -- keep
-    # delegation.max_concurrent_children low, and see credential_pool_strategies
-    # for adding a second key (same provider, fill_first).
+    # ONE BUCKET. Parent, subagents, MoA reference, vision and the MoA aggregator
+    # all spend this key's ~40 RPM together. The CI block requires any auxiliary or
+    # delegation slot sharing the parent's provider to use the SAME model as the
+    # parent. The MoA aggregator is the single sanctioned exception; CI requires it
+    # to be listed here and to differ from every MoA reference. A fan-out can
+    # starve the parent -- keep delegation.max_concurrent_children low, and see
+    # credential_pool_strategies for adding a second key (same provider, fill_first).
     #
-    # MOA AGGREGATOR ID, 2026-10-19, on request ("change the MOA Aggregator to the
-    # Nvidia Nemotron 226 to 250B or 550B"): nvidia/nemotron-3-ultra-550b-a55b.
-    # LIVE-VERIFIED the same way as the primary: GET /v1/models, HTTP 200, 81
-    # models, this exact id listed -- and, stronger, GET /v1/models/<id> (no key)
-    # returns HTTP 200 for BOTH NVIDIA ids in this file. That per-id endpoint also
-    # says WHY an id is dead: it returns HTTP 410 with the end-of-life date for a
-    # retired one (moonshotai/kimi-k3: 2026-10-15; the 49B: 2026-08-26) and 404 for
-    # one NIM never had. 550B total / 55B active, hybrid Mamba-Attention
-    # LatentMoE, GA 2026-06-04, "up to 1M" context (256k default serving config;
-    # not measured on this endpoint), OpenMDW-1.1. TEXT IN, TEXT OUT: unlike Super
-    # VL it cannot take an image. Reasoning is ON by default (`enable_thinking`,
-    # plus a cheaper `medium_effort`); NVIDIA's examples sample at temperature 1.0,
-    # top_p 0.95 -- the same as the primary. Same id on OpenRouter
-    # (`nvidia/nemotron-3-ultra-550b-a55b`, $0.50/$2.20 per MTok, 262K context
-    # paid, `:free` variant listed at 1M); Hugging Face and Baseten spell it
+    # MOA AGGREGATOR: nvidia/nemotron-3-ultra-550b-a55b.
+    # LIVE-VERIFIED the same way: GET /v1/models lists it, and GET /v1/models/<id>
+    # (no key) returns HTTP 200 for BOTH NVIDIA ids in this file. That per-id
+    # endpoint also says WHY an id is dead: HTTP 410 with the end-of-life date for
+    # a retired model, 404 for one NIM never had. 550B total / 55B active, hybrid
+    # Mamba-Attention LatentMoE, GA 2026-06-04, "up to 1M" context (256k default
+    # serving config; not measured on this endpoint), OpenMDW-1.1. TEXT IN, TEXT
+    # OUT: unlike Super VL it cannot take an image. Reasoning is ON by default
+    # (`enable_thinking`, plus a cheaper `medium_effort`); NVIDIA samples it at
+    # temperature 1.0, top_p 0.95 -- the same as the primary. Same id on OpenRouter
+    # (`nvidia/nemotron-3-ultra-550b-a55b`); Hugging Face and Baseten spell it
     # `nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4`.
     #
-    # WHY 550B AND NOT THE 226-250B HALF OF THE ASK. NIM's hosted catalog has
-    # nothing in 226-250B: its large Nemotrons are 120B (Super), 253B
-    # (Llama-3.1-Nemotron-Ultra, whose free endpoint NVIDIA marks Deprecated --
-    # the 49B was killed with the same marking), 340B (Nemotron-4) and 550B. The
-    # one Nemotron-named 235B anywhere is nvidia/Qwen3-Nemotron-235B-A22B-GenRM on
-    # Hugging Face: Qwen3-235B-A22B-Thinking-2507 fine-tuned as a reward MODEL
-    # that scores two candidate replies 1-5 / 1-6. It does not act or call tools,
-    # no inference provider hosts it, and self-hosting it needs 8x H100, so it
-    # cannot be an aggregator here. (The first reply to this request said no
-    # Nemotron existed in that range; that was wrong, and this is the correction.)
+    # NIM hosts nothing between 120B and 550B that can act as an aggregator: the
+    # large Nemotrons are 120B (Super), 253B (Llama-3.1-Nemotron-Ultra, marked
+    # Deprecated), 340B (Nemotron-4) and 550B. The one 235B Nemotron-named model
+    # (nvidia/Qwen3-Nemotron-235B-A22B-GenRM) is a reward model that scores two
+    # replies; it does not act or call tools.
     #
     # NOT MEASURED HERE: whether this key may call the 550B at all, its latency, and
     # whether NVIDIA gives it a lower rate cap than the 120B. Run the second
     # preflight command in the VERIFY block at the top of this file before relying
     # on it.
     #
-    # PREVIOUS ids on this gateway, kept so nothing dangles for /model users:
-    #   nvidia/nemotron-3-nano-omni-30b-a3b-reasoning  -- was subagents + fallback 1
-    #       + MoA reference (live-verified 2026-09-27). Still listed below for the
-    #       picker; no longer routed anywhere.
-    #   nvidia/llama-3.3-nemotron-super-49b-v1.5       -- DEAD, HTTP 410, EOL
-    #       2026-08-26 (caught live via /moa). Not listed. Check any future swap with:
-    #           bash scripts/nim-preflight.sh --list | grep -i nemotron
+    # `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` stays in `models:` for the
+    # /model picker and is routed nowhere.
+    # FALLBACK 2: nvidia/nemotron-3.5-lightning-30b-a3b (2026-10-19, on request; replaces the local 49B).
+    # Chosen over z-ai/glm-5.3-flash the same evening, on request ("it may need a smaller or
+    # different model"). 30B total / ~3B active by its id. It is the ONLY Lightning size NIM,
+    # OpenRouter and Hugging Face list; there is no 120B Lightning.
+    # LIVE-VERIFIED: GET /v1/models lists it, and GET /v1/models/nvidia/nemotron-3.5-lightning-30b-a3b
+    # (no key) returned HTTP 200 on 2026-10-19. NOT MEASURED: its context length on
+    # this endpoint (context_length below is provider-wide), its tool-calling
+    # behaviour, whether THIS key may call it, and its rate cap. It shares the
+    # parent's bucket, so it covers a failure of the parent MODEL, not a 429 (see
+    # THE INVARIANT at the top). It is listed here because CI requires it.
     default_model: nvidia/nemotron-3.5-super-vl-120b-a12b
     models:
       - nvidia/nemotron-3.5-super-vl-120b-a12b
       - nvidia/nemotron-3-ultra-550b-a55b
       - nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      - nvidia/nemotron-3.5-lightning-30b-a3b
     discover_models: false
     # nim-preflight.sh reports what the endpoint advertises. Set this to the number
     # it prints. The preflight defaults to the model above; NVIDIA_NIM_MODEL
@@ -238,29 +186,25 @@ providers:
     # measures on this account. A value too LOW wastes window; too HIGH overflows
     # on a rejected request.
     context_length: 131072
+    # NOT ENABLED. NVIDIA's cookbook says tool calling with reasoning on needs
+    # `force_nonempty_content: true` in chat_template_kwargs, or `content` can
+    # come back empty beside a tool call. Whether the HOSTED endpoint accepts
+    # the field is unverified, and a rejection (HTTP 400/422) would fail every
+    # turn on the only gateway. Run `bash scripts/nim-preflight.sh`; when its
+    # "reasoning on + force_nonempty_content" probe prints `ok`, uncomment:
+    # extra_body:
+    #   chat_template_kwargs:
+    #     force_nonempty_content: true
 
   or-fallback:
     name: "OpenRouter"
     api: https://openrouter.ai/api/v1
     key_env: OPENROUTER_API_KEY
     transport: chat_completions
-    # Third bucket: the 429 escape hatch, AND the workhorse for the two heavy
-    # auxiliary slots. Both jobs land on one model on purpose.
-    #
-    # REVERTED to Qwen3.5-122B-A10B 2026-09-28, on request: DeepSeek removed
-    # globally from this build, repo-wide, not just from the MoA block. This is
-    # the same id this tier ran before a DeepSeek was ever put here (see
-    # `git show 84b3dc4` for the commit that first introduced it) -- reverting
-    # rather than picking something new, since this exact model already proved
-    # out on this bucket.
-    #
-    # Losing with this revert, stated plainly rather than glossed over: the
-    # "one family across parent/fallback/auxiliaries" property the DeepSeek
-    # pairing bought is gone the moment the parent stops being a DeepSeek too
-    # (tracked separately -- see the top-of-file comment and the `model:` block
-    # below). Re-verify context_length and tool-call behavior against Qwen's
-    # actual OpenRouter listing before trusting the number below; it has not
-    # been re-measured since the revert.
+    # The 429 escape hatch, AND the workhorse for the two heavy auxiliary slots
+    # (compression, web_extract). Both jobs land on one model on purpose.
+    # context_length below has not been re-measured against Qwen's actual
+    # OpenRouter listing; verify it and tool-call behaviour before trusting it.
     default_model: qwen/qwen3.5-122b-a10b
     models:
       - qwen/qwen3.5-122b-a10b
@@ -281,84 +225,51 @@ providers:
     # loopback hosts for exactly this reason.
     api_key: "no-key-required"
     transport: chat_completions
-    # SWAPPED 2026-09-25, on request: "remove hermes 8B and the 12b [...] to the
-    # local hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0 [...]
-    # inference setup will be handled by Hermes." hermes3:8b is gone from this
-    # file entirely, replaced by a single, smaller local model -- Q8_0, verified
-    # live against the Hugging Face repo on 2026-09-25 at 3,421,895,840 bytes
-    # (~3.42 GB), matching the "3.4 GB" the request named.
-    #
-    # PULLED VIA OLLAMA'S OWN HF-DIRECT FEATURE, not a manual GGUF download+
-    # Modelfile the way earlier local models in this file needed:
+    # PULLED VIA OLLAMA'S OWN HF-DIRECT FEATURE, not a manual GGUF download +
+    # Modelfile:
     #     ollama pull hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
     # The full string becomes the model's tag in `ollama list` and is exactly
     # what belongs in `default_model`/`models:` below -- Ollama does not rename
     # it. Needs a reasonably current Ollama (the hf.co/ pull path); check
-    # `ollama --version` if the pull is rejected. No llama.cpp, no --mmproj, no
-    # second local service: this is a normal Ollama tag like hermes3:8b was.
+    # `ollama --version` if the pull is rejected. Q8_0 is 3,421,895,840 bytes
+    # (~3.42 GB), checked against the Hugging Face repo 2026-09-25.
     #
     # "ABLITERATED" IS A REAL BEHAVIOR CHANGE, NOT A BRANDING DETAIL. This is a
     # refusal-removed fine-tune -- its safety training was deliberately ablated.
-    # That is now the model backing every local-routed auxiliary slot below,
-    # `auxiliary.approval` included. Worth knowing before assuming "smaller
-    # model" is the only thing that changed.
-    #
-    # It is also the auxiliary workhorse (see `auxiliary:` below) -- routing,
-    # classification, short structured output, tool selection -- the same role
-    # hermes3:8b held, on a smaller model now.
+    # It backs every local-routed auxiliary slot below, `auxiliary.approval`
+    # included. It is the auxiliary workhorse (see `auxiliary:` below): routing,
+    # classification, short structured output, tool selection.
     default_model: hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
     models:
       - hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
-      # ADDED 2026-09-28, on request, as the MoA aggregator (moved here from the
-      # now-dead NVIDIA-hosted 49B id). Since 2026-10-19 it is fallback 2 only:
-      # the aggregator moved to nvidia-nim (see moa.aggregator below). Split GGUF,
-      # 2 files, 58.68 GB combined -- live-verified via the Hugging Face Hub
-      # (unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF). `ollama pull
-      # hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL` handles
-      # both parts automatically. This is a real jump from the 3.4 GB floor
-      # model above -- confirm the box actually has the VRAM/RAM before trusting
-      # this line, the same way the 3B's pull is assumed rather than verified.
-      - hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL
+      # The 49B Nemotron GGUF (~58.68 GB) was fallback 2 until 2026-10-19. Removed:
+      # the target machine has 8 GB of RAM, and no hosted endpoint serves that model.
     discover_models: false
-    # `local-vl` (nemotron-nano-12b-v2-vl on llama.cpp :8080) is REMOVED, not just
-    # unrouted -- the 120-line rationale that used to live here for why heavy
-    # local work needed a second server is gone with it. `auxiliary.vision`
-    # reverted to the cloud route it used before that tier existed; see its own
-    # comment below for why and the exact history. Llama-3.2-3B is text-only
-    # (Llama 3.2's vision variants are the 11B/90B line, not 1B/3B) -- it was
-    # never a vision-capable replacement, so this is a real capability loss for
-    # local/offline vision, accepted on request, not something this swap papers
-    # over.
+    # Llama-3.2-3B is text-only (Llama 3.2's vision variants are the 11B/90B line),
+    # so there is no local vision. `auxiliary.vision` is cloud-routed; offline
+    # vision does not exist in this build.
     #
     # KV cache is what hurts on a laptop, not the weights, so this sits far below
-    # the model's native window. Raise it only as far as RAM tolerates -- and
-    # note there is more room now than hermes3:8b left, since the weights
-    # themselves are smaller (3.4 GB vs. hermes3:8b's ~4.7 GB Q4 tag).
-    #
-    # THIS WAS SIZED FOR THE 3B FLOOR MODEL ONLY. The 49B (fallback 2) added above
-    # shares this same `local` provider and this same context_length -- not
-    # re-tuned for it. 32768 is a conservative floor that will run on the 49B
-    # too, just not verified as the RIGHT number for it; re-check once the 49B
-    # is actually pulled and you can measure real headroom.
+    # the model's native window. Raise it only as far as RAM tolerates. It was
+    # sized for the 3B floor model. 32768 is a conservative floor, not a measured
+    # optimum.
     context_length: 32768
 
   anthropic-direct:
     name: "Anthropic (OpenAI-compatible endpoint)"
     #
-    # NOT WIRED INTO ANY TIER. Added available-but-unassigned, on request, on
-    # 2026-09-25. No parent, delegation, fallback, MoA or auxiliary slot points
-    # here. Reachable only via `/model custom:anthropic-direct:claude-sonnet-5`.
-    # Wiring it into a role is a separate, deliberate edit -- see the MoA
-    # aggregator comment below for why it was kept out of that slot specifically.
+    # NOT WIRED INTO ANY TIER. No parent, delegation, fallback, MoA or auxiliary
+    # slot points here. Reachable only via
+    # `/model custom:anthropic-direct:claude-sonnet-5`. Wiring it into a role is a
+    # separate, deliberate edit.
     #
     # THIS ROUTES THROUGH ANTHROPIC'S OWN OPENAI-COMPATIBLE ENDPOINT, not a
     # third-party proxy and not the native Messages API. Anthropic ships a
     # `/v1/chat/completions` surface built for exactly this transport, alongside
     # the native `/v1/messages` used by the Anthropic SDKs.
     #
-    # VERIFIED LIVE 2026-09-25, not assumed from training data -- this repo's own
-    # standard after the or-fallback model-id incident. Two no-credential probes
-    # against the real endpoint, no real key ever sent:
+    # VERIFIED LIVE 2026-09-25 with no-credential probes against the real endpoint,
+    # no real key ever sent:
     #   1. POST /v1/chat/completions, no auth header at all -> 401 with an
     #      OpenAI-shaped error body ({"error":{"code":...,"type":
     #      "invalid_request_error"}}). A garbage `Authorization: Bearer` token
@@ -392,8 +303,7 @@ providers:
       - claude-sonnet-5
     # Pin the picker to the line above, matching every other entry in this file.
     discover_models: false
-    # From the claude-api skill's live model table (cached 2026-06-24, re-checked
-    # 2026-09-25): 1,000,000-token context, $2.00 / $10.00 per MTok in / out.
+    # Per the claude-api skill's model table: 1,000,000-token context, $2.00 / $10.00 per MTok in / out.
     # Held below the architectural ceiling for the same reason every provider
     # here is: this compat SHIM's own per-request window was never measured
     # against a real key, so raise this only once `-Deep` confirms what it
@@ -406,20 +316,12 @@ model:
   # the OpenRouter catalog overrides an explicit custom base_url and sends your
   # key to a third party.
   #
-  # MOVED TO NVIDIA NIM / nemotron-3.5-super-vl-120b-a12b 2026-10-19, on request:
-  # "the nemotron 3.5 Super VL should be the only gateway and inference." Before
-  # this the parent was the local 49B Nemotron GGUF (2026-09-28, off
-  # hf-router/DeepSeek-V4-Pro); that GGUF stays pulled and wired as fallback 2
-  # (it was also the MoA aggregator until the aggregator moved to NIM the same
-  # day -- see the moa: block), so it is demoted, not removed. See the
-  # `nvidia-nim` provider entry for the live-verification of
-  # this id, why it differs from the same weights on other gateways, and what
-  # sharing one bucket costs.
-  #
-  # Lost with this move, stated plainly: the parent no longer runs offline, and
-  # the "local parent has no cloud bucket to starve" property is gone. Offline
-  # work now degrades through fallback_providers (below) instead of continuing
-  # at full strength.
+  # NVIDIA NIM / nemotron-3.5-super-vl-120b-a12b is the primary (2026-10-19, on
+  # request: "the nemotron 3.5 Super VL should be the only gateway and inference").
+  # See the `nvidia-nim` provider entry for the live verification of this id, why it
+  # differs from the same weights on other gateways, and what sharing one bucket
+  # costs. The parent does not run offline: offline work degrades through
+  # fallback_providers (below).
   provider: "custom:nvidia-nim"
   default: nvidia/nemotron-3.5-super-vl-120b-a12b
   # NVIDIA's model card: temperature 1.0, top_p 0.95.
@@ -428,15 +330,9 @@ model:
 
 fallback_providers:
   # A 429 or an outage on the parent falls through to a different provider rather
-  # than stopping. RE-SEQUENCED 2026-10-19 with the parent now on NVIDIA NIM:
-  # every link below sits on a DIFFERENT bucket from the parent, because a 429
-  # on nvidia-nim cannot be answered from nvidia-nim.
-  #
-  # The old fallback 1 (nvidia/nemotron-3-nano-omni-30b-a3b-reasoning on the same
-  # NIM key) is REMOVED from this chain: it shared the parent's key and bucket,
-  # so a rate-limit on the parent would have hit it too -- it answered nothing
-  # the parent could not. The id is still listed under providers.nvidia-nim for
-  # /model, just not routed.
+  # than stopping. The FIRST link sits on a DIFFERENT bucket from the parent, because
+  # a 429 on nvidia-nim cannot be answered from nvidia-nim (CI enforces it). The one
+  # sanctioned later link on the parent's endpoint is fallback 2 below.
   #
   # FALLBACK 1 -- OpenRouter, Qwen3.5-122B-A10B. Independent bucket, cloud speed.
   # Matches `or-fallback`'s own default_model -- see that entry for why this id.
@@ -444,18 +340,17 @@ fallback_providers:
     model: qwen/qwen3.5-122b-a10b
     base_url: https://openrouter.ai/api/v1
     key_env: OPENROUTER_API_KEY
-  # FALLBACK 2 -- ADDED 2026-10-19: the local 49B Nemotron GGUF, the previous
-  # parent. Keeps a full-strength tier alive when the network is down, so losing
-  # NIM no longer drops offline work straight to a 3B. No rate limit, no key.
-  # Needs the GGUF pulled (see providers.local) and the RAM/VRAM for it -- it is
-  # on the failure path, not the hot path, so it only has to load when called.
+  # FALLBACK 2 -- nvidia/nemotron-3.5-lightning-30b-a3b on NVIDIA NIM (2026-10-19, on request; replaces
+  # the local 49B, which an 8 GB machine cannot load). SAME ENDPOINT AND BUCKET AS THE
+  # PARENT: it answers a failure of the parent MODEL (retired id, 5xx), not a 429 and
+  # not a NIM-wide outage. Fallback 1 is the 429 escape, so it stays first. This is
+  # NIM's id for the model, not another gateway's -- see providers.nvidia-nim.
   - provider: custom
-    model: hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL
-    base_url: http://127.0.0.1:11434/v1
-    api_key: "no-key-required"
+    model: nvidia/nemotron-3.5-lightning-30b-a3b
+    base_url: https://integrate.api.nvidia.com/v1
+    key_env: NVIDIA_API_KEY
   # LAST RESORT, and the cheapest to run offline. Much smaller than anything above
-  # it; nothing can rate-limit it. Swapped from hermes3:8b to the same local model
-  # the `local` provider now runs, 2026-09-25.
+  # it; nothing can rate-limit it.
   - provider: custom
     model: hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
     base_url: http://127.0.0.1:11434/v1
@@ -468,75 +363,62 @@ delegation:
   # either pasting a token into this file or having children authenticate as the
   # wrong account. Naming the provider resolves its key_env instead.
   #
-  # SUBAGENTS NOW SHARE THE PARENT'S PROVIDER AND MODEL, on request (2026-10-19):
-  # nemotron-3.5-super-vl-120b-a12b is the only model this build routes inference
-  # to. Before this, subagents ran nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
-  # on NIM as "the children's own bucket" while the parent sat on local Ollama;
-  # that separation vanished the moment the parent moved to NIM, and the CI block
-  # now enforces the replacement rule instead: a slot that shares the parent's
-  # provider must use the parent's exact model.
+  # SUBAGENTS SHARE THE PARENT'S PROVIDER AND MODEL: nemotron-3.5-super-vl-120b-a12b
+  # is the only model this build routes inference to (except the MoA aggregator).
+  # CI enforces the rule: a slot that shares the parent's provider must use the
+  # parent's exact model.
   #
-  # The cost is real and named: parent and children draw one ~40 RPM bucket, so a
-  # fan-out of N children takes N/40ths of the parent's headroom. max_concurrent_children
-  # stays at 3 for that reason -- do not raise it without a second NIM key
+  # The cost is real: parent and children draw one ~40 RPM bucket, so a fan-out of N
+  # children takes N/40ths of the parent's headroom. max_concurrent_children stays
+  # at 3 for that reason -- do not raise it without a second NIM key
   # (credential_pool_strategies, fill_first).
   provider: "custom:nvidia-nim"
   model: nvidia/nemotron-3.5-super-vl-120b-a12b
   max_concurrent_children: 3
-  # Still empty. A chain from a child back onto the parent's provider would burn
-  # the parent's bucket on a child's failure -- and now the provider is the same,
-  # so there is nothing different for it to fall back TO.
+  # Empty on purpose: the children share the parent's provider, so there is nothing
+  # different for them to fall back to that the parent's own chain does not cover.
   fallback_providers: []
 
 # ---------------------------------------------------------------------------
 # MIXTURE OF AGENTS
 #
-# HOW A MoA TURN ACTUALLY RUNS (hermes-agent docs, "Mixture of Agents", read
-# 2026-10-19): the AGGREGATOR is the ACTING model. It writes the reply, emits the
-# tool calls and runs EVERY iteration of the tool loop. The reference models only
+# HOW A MoA TURN RUNS (hermes-agent docs, "Mixture of Agents"): the AGGREGATOR is the
+# ACTING model. It writes the reply, emits the tool calls and runs EVERY iteration
+# of the tool loop. The reference models only
 # ADVISE -- by default once per user turn (`fanout: user_turn`), with no tool
-# schemas and without the Hermes system prompt. This block used to say "at least
-# two calls per turn: every reference, then the aggregator", which understated
-# it: the aggregator is called once per iteration, the references once per turn.
+# schemas and without the Hermes system prompt. The aggregator is called once per
+# iteration, the references once per turn.
 #
 # What that means for the one NIM bucket (~40 RPM, shared): on a MoA turn the
 # aggregator takes the PARENT'S place for the tool loop, so the extra NIM
 # requests over a plain turn are the reference calls -- one per user turn. Do not
 # set `fanout: per_iteration` here: it re-runs the reference on every tool step.
 #
-# SAME PROVIDER NOW, DIFFERENT MODEL. The old rule here was "reference and
-# aggregator on DIFFERENT providers". That is traded away on request
-# (2026-10-19): both sit on custom:nvidia-nim. What CI enforces instead is that
-# the aggregator is a different MODEL from every reference, because a MoA whose
-# aggregator is its own reference checks nothing. Honest limit: both are Nemotron
-# 3 family (Super VL 120B-A12B, Ultra 550B-A55B), so this is a bigger-model
-# check, not an independent-lineage one.
+# SAME PROVIDER, DIFFERENT MODEL. Reference and aggregator both sit on
+# custom:nvidia-nim. CI enforces that the aggregator is a different MODEL from every
+# reference, because a MoA whose aggregator is its own reference checks nothing.
+# Honest limit: both are Nemotron 3 family (Super VL 120B-A12B, Ultra 550B-A55B), so
+# this is a bigger-model check, not an independent-lineage one.
 #
 # TWO SHAPES, KEPT IN STEP. Current Hermes docs put reference_models and
 # aggregator INSIDE each preset (moa.presets.<name>), chosen by
-# moa.default_preset. This file used the flat moa.reference_models /
-# moa.aggregator keys, and its preset carried NO aggregator -- on the documented
-# schema that preset has no acting model. Which shape the installed Hermes reads
-# is not confirmed from here, so BOTH are written and CI fails if they disagree.
+# moa.default_preset. Older Hermes reads the flat moa.reference_models /
+# moa.aggregator keys. A preset with no aggregator has no acting model. Which shape
+# the installed Hermes reads is not confirmed from here, so BOTH are written and CI fails if they disagree.
 # Drop the flat pair once `hermes moa list` exists on the install (that command
 # only exists on the preset schema).
 # ---------------------------------------------------------------------------
 moa:
   default_preset: default
   reference_models:
-    # Reference model is nemotron-3.5-super-vl-120b-a12b as of 2026-10-19, on
-    # request -- the same id as the parent, subagents and vision (see the
-    # `nvidia-nim` provider entry). Before that: nano-omni (2026-09-27), and
-    # before that DeepSeek on the now-removed hf-router (reverted 2026-09-28).
+    # Reference model is the same id as the parent, subagents and vision (see the
+    # `nvidia-nim` provider entry).
     - provider: "custom:nvidia-nim"
       model: nvidia/nemotron-3.5-super-vl-120b-a12b
       enabled: true
   aggregator:
-    # NVIDIA NEMOTRON 3 ULTRA 550B-A55B, 2026-10-19, on request ("change the MOA
-    # Aggregator to the Nvidia Nemotron 226 to 250B or 550B"). Why this id, and
-    # why not the 226-250B half of the ask, is in the `nvidia-nim` provider entry
-    # beside the live catalog check. Before today: the local 49B Nemotron GGUF
-    # (2026-09-28), which is now fallback 2 only.
+    # NVIDIA NEMOTRON 3 ULTRA 550B-A55B, 2026-10-19, on request. Why this id is in
+    # the `nvidia-nim` provider entry beside the live catalog check.
     #
     # WHAT YOU GIVE UP vs the 120B, stated plainly:
     #   - TEXT ONLY. Super VL takes images and video; Ultra does not. On a MoA turn
@@ -548,7 +430,7 @@ moa:
     #     per-slot `reasoning_effort`, but how it maps onto NIM's `enable_thinking`
     #     / `medium_effort` is UNVERIFIED, so it is deliberately not set here.
     #   - No local copy: 550B needs ~4x B200 or 8x H100 to self-host. The offline
-    #     tier is the 49B (fallback 2), not this.
+    #     tier is the local 3B floor, not this.
     #
     # STILL NOT anthropic-direct, and the original reasoning still holds: every
     # MoA turn would carry a metered $2/$10-per-MTok aggregator on a config whose
@@ -608,11 +490,8 @@ web:
 # indirection is the point: exclusion matches every key a provider surfaces
 # under, so an entry named after its own exclusion would hide itself.
 #
-# `deepseek` stays excluded too, defensively, even though nothing in this
-# config routes a DeepSeek model anymore as of 2026-09-28 (the `hf-router`
-# provider it used to justify this is removed). Leaving the exclusion in place
-# costs nothing and blocks Hermes' own built-in `deepseek` catalog entry from
-# ever surfacing by drift; removing it would need a reason, not just tidiness.
+# `deepseek` stays excluded defensively: it blocks Hermes' own built-in `deepseek`
+# catalog entry from surfacing by drift, and nothing here routes to it.
 #
 # `openai-codex` is excluded for a different reason than the rest. It is not
 # clutter — it is a working provider (ChatGPT/Codex OAuth) that must never be
@@ -627,18 +506,17 @@ web:
 #   /model custom:nvidia-nim:nvidia/nemotron-3-ultra-550b-a55b                           (the MoA aggregator; text-only)
 #   /model custom:nvidia-nim:nvidia/nemotron-3-nano-omni-30b-a3b-reasoning               (listed, unrouted)
 #   /model custom:or-fallback:qwen/qwen3.5-122b-a10b
-#   /model custom:local:hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL   (fallback 2, offline)
+#   /model custom:nvidia-nim:nvidia/nemotron-3.5-lightning-30b-a3b                                          (fallback 2)
 #   /model custom:local:hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
 #   /model custom:anthropic-direct:claude-sonnet-5       (needs ANTHROPIC_API_KEY)
 # ---------------------------------------------------------------------------
 excluded_providers:
-  # EXACT LOWERCASE SET MATCH, NOT SUBSTRING. Verified in the hermes-agent source
-  # 2026-09-23: hermes_cli/model_switch_providers.py builds
+  # EXACT LOWERCASE SET MATCH, NOT SUBSTRING (hermes-agent source): hermes_cli/model_switch_providers.py builds
   # `excluded={str(p).strip().lower() for p in excluded_providers}`. So `google` does
   # NOT cover `gemini`, and `openai-codex` does NOT cover `codex`. Every alias has to
   # be listed by name.
   #
-  # THIS LIST WAS SHORT BY SEVEN NAMES until that check was run. The source defines
+  # Every alias has to be listed. The source defines
   # _GEMINI_NATIVE_PROVIDER_NAMES = {"gemini", "google", "google-gemini",
   # "google-ai-studio"} and _GOOGLE_PROVIDER_NAMES adds {"vertex", "google-vertex",
   # "vertex-ai"} -- only one of those seven was excluded. Separately,
@@ -709,10 +587,17 @@ stt:
 #
 # TWO HOSTED SERVERS ARE ALLOWED HERE, and they are the exception rather than the
 # rule. CI enforces an explicit allowlist (`cloudflare`, `submcp`) instead of the
-# blanket loopback-only rule it used to apply: a hosted MCP costs a round trip per
+# blanket loopback-only rule: a hosted MCP costs a round trip per
 # call and prompt space on every request, so each one has to be named in CI on
 # purpose rather than added by drift. Everything not on that list must still be
 # loopback or a local subprocess.
+#
+# EVERY server below sets `prompts: false` and `resources: false`. Hermes registers
+# four utility tools per server (list/read resources, list/get prompts) unless told
+# not to, and nothing here calls them. CI enforces both keys on every server.
+# `unfiltered: true` is NOT a Hermes key: the source ignores it, and with neither
+# include nor exclude set Hermes registers every tool. It is this repo's marker so CI
+# can tell a reviewed opt-out from an unnoticed one.
 #
 # `render` is deliberately ABSENT. Its endpoint (mcp.render.com) failed DNS
 # repeatedly, and the config it was configured in carried an INLINE bearer token.
@@ -725,6 +610,8 @@ mcp_servers:
   voicebox:
     url: "http://127.0.0.1:17493/mcp"
     tools:
+      prompts: false
+      resources: false
       # Explicitly unfiltered. Voicebox has never been started in this
       # environment, so its tool names are unknown here and a guessed
       # include-list would filter everything out and silently break voice. Run
@@ -739,6 +626,8 @@ mcp_servers:
   crawl4ai:
     url: "http://127.0.0.1:11235/mcp/sse"
     tools:
+      prompts: false
+      resources: false
       include:
         - crawl
         - scrape
@@ -749,19 +638,22 @@ mcp_servers:
     command: "npx"
     args: ["-y", "@atomicmemory/mcp-server"]
     tools:
+      prompts: false
+      resources: false
       include:
         - store_memory
         - search_memory
         - list_memories
 
   # The packaged Hermes/Codex skills server. Local subprocess, no network.
-  # Set HERMES_SKILLS_SERVER to the built entrypoint — on the 2026-09-22 Windows
-  # box that is %LOCALAPPDATA%\hermes\skills-mcp-server\dist\index.js. Do not
+  # Set HERMES_SKILLS_SERVER to the built entrypoint — on the Windows box that is %LOCALAPPDATA%\hermes\skills-mcp-server\dist\index.js. Do not
   # hardcode a per-machine path in a file that gets copied between machines.
   hermes-skills:
     command: "node"
     args: ["${HERMES_SKILLS_SERVER}"]
     tools:
+      prompts: false
+      resources: false
       include:
         - list_skills
         - get_skill
@@ -769,39 +661,30 @@ mcp_servers:
 
   # Multi-perspective review. Local subprocess.
   #
-  # ROOT CAUSE CORRECTED 2026-09-22, AND THE CORRECTION IS THE POINT.
-  #
-  # This entry used to name a Python interpreter directly, and the Hermes
-  # supervisor SUBSTITUTED ITS OWN BUNDLED PYTHON when launching it. The symptom:
+  # The Hermes supervisor SUBSTITUTES ITS OWN BUNDLED PYTHON when it launches a
+  # `command:` entry that names a Python interpreter. The symptom:
   #     ModuleNotFoundError: No module named 'mcp.server.fastmcp'
-  # which reads as a dependency fault and is not one. hermes_council imports
-  # cleanly under the interpreter it was installed into -- verified on the box.
-  # The supervisor was simply running a different Python than the one holding
-  # the packages.
-  #
-  # An earlier revision of this file diagnosed it as an MCP SDK version mismatch
-  # and told the reader to reconcile package versions in the venv. That was
-  # WRONG, and it sent debugging one layer below where the fault lived. It is
-  # recorded here rather than quietly deleted because the wrong answer was
-  # entirely plausible: the error names a module, so a missing module is the
-  # obvious inference, and it is the wrong one.
+  # which reads as a dependency fault and is not one: hermes_council imports
+  # cleanly under the interpreter it was installed into; the supervisor was running
+  # a different Python than the one holding the packages. Do not debug package
+  # versions in the venv.
   #
   # The fix is indirection the supervisor cannot reach through. `command` names a
-  # LAUNCHER; the launcher pins the absolute interpreter internally. Whatever the
-  # supervisor resolves for `command`, it cannot reach inside the launcher to
-  # swap what that launcher itself executes. scripts/hermes-council-launch.cmd
-  # refuses to run rather than guess an interpreter -- a silent fallback is the
-  # whole bug class.
+  # LAUNCHER; the launcher pins the absolute interpreter internally.
+  # scripts/hermes-council-launch.cmd refuses to run rather than guess an
+  # interpreter -- a silent fallback is the whole bug class.
   #
-  # THE SAME EXPOSURE APPLIES TO EVERY `command:` ENTRY BELOW AND ABOVE.
-  # atomicmemory (npx) and hermes-skills (node) are the other two. A substituted
-  # Node fails the same way and just as misleadingly. The `url:` entries --
+  # THE SAME EXPOSURE APPLIES TO EVERY `command:` ENTRY. atomicmemory (npx) and
+  # hermes-skills (node) are the other two; a substituted Node fails the same way
+  # and just as misleadingly. The `url:` entries --
   # voicebox, crawl4ai, and the two hosted servers -- are immune, because the
   # supervisor connects to them rather than launching them.
   hermes-council:
     command: "${HERMES_COUNCIL_LAUNCHER}"
     args: []
     tools:
+      prompts: false
+      resources: false
       include:
         - council_review
         - council_perspectives
@@ -809,7 +692,7 @@ mcp_servers:
   # Codex, as TOOLS rather than as a shell string.
   #
   # `codex mcp list` reports Unsupported and always will: Codex 0.154.0 removed the
-  # mcp-server entry point on 2026-09-05 and Codex is an MCP CLIENT now. This is the
+  # mcp-server entry point and Codex is an MCP CLIENT now. This is the
   # interface rebuilt locally -- scripts/codex-mcp/server.js, dependency-free, talking
   # newline-delimited JSON-RPC over stdio.
   #
@@ -820,13 +703,15 @@ mcp_servers:
   #
   # LAUNCHER, not a bare `node`, for the reason spelled out on hermes-council: the
   # supervisor substitutes its own runtime for a `command:` entry, and a substituted
-  # Node fails exactly as misleadingly as the substituted Python did. Set
+  # Node fails exactly as misleadingly as a substituted Python. Set
   # HERMES_CODEX_LAUNCHER to scripts\codex-mcp-launch.cmd and HERMES_CODEX_NODE to the
   # node.exe it should pin; the launcher refuses rather than guessing.
   codex-mcp:
     command: "${HERMES_CODEX_LAUNCHER}"
     args: []
     tools:
+      prompts: false
+      resources: false
       include:
         - codex_exec
         - codex_status
@@ -835,6 +720,8 @@ mcp_servers:
   cloudflare:
     url: "https://mcp.cloudflare.com/mcp"
     tools:
+      prompts: false
+      resources: false
       include:
         - workers_list
         - workers_get
@@ -844,7 +731,31 @@ mcp_servers:
   submcp:
     url: "https://mcp.submcp.com/mcp"
     tools:
+      prompts: false
+      resources: false
       unfiltered: true
+
+# TOOL SEARCH — pinned, not newly enabled.
+#
+# Checked against the Hermes source (upstream main, 2026-10-19): `tools.tool_search`
+# defaults to "auto", which activates whenever any deferrable tool exists, and every
+# `mcp-*` tool is deferrable. The model sees a short bridge (tool_search /
+# tool_describe / tool_call) plus a name-and-first-sentence listing instead of every
+# MCP schema. Pinning "on" means a future change to the upstream default cannot
+# silently put all MCP schemas back into every request on a 12B-active model with a
+# 131k window and ~40 RPM. The budget numbers below are Hermes' own defaults, written
+# out so they are visible; nothing in this repo measured better ones. `defer` is left
+# unset on purpose: an explicit list REPLACES the curated default wholesale.
+# Installed Hermes version unconfirmed: an older build ignores this block harmlessly,
+# and `hermes config check` shows whether yours knows the key.
+tools:
+  tool_search:
+    enabled: "on"
+    listing: "auto"
+    threshold_pct: 5
+    listing_max_tokens: 4000
+    search_default_limit: 5
+    max_search_limit: 25
 
 # ---------------------------------------------------------------------------
 # THROUGHPUT — everything below exists to buy requests, not to save money
@@ -863,9 +774,8 @@ mcp_servers:
 #
 # THE SPLIT BELOW IS NOT UNIFORM, and the reason matters.
 #
-# The local model (Hermes-3-Llama-3.2-3B-abliterated:Q8_0, swapped from
-# hermes3:8b 2026-09-25 -- local, free, unmetered, no rate limit either way)
-# takes the slots a small model is genuinely strong at: routing, classification,
+# The local model (Hermes-3-Llama-3.2-3B-abliterated:Q8_0 -- local, free,
+# unmetered, no rate limit) takes the slots a small model is genuinely strong at: routing, classification,
 # tool selection, short structured output. That is five of the seven, and it
 # costs nothing at any volume.
 #
@@ -886,46 +796,22 @@ auxiliary:
   web_extract:
     provider: "custom:or-fallback"
     model: qwen/qwen3.5-122b-a10b
-  # VISION: MOVED TO nemotron-3.5-super-vl-120b-a12b 2026-10-19, on request. The
-  # "VL" in that id is the point: it is a vision-language model (image, video and
-  # text in), so the parent can see and this slot no longer needs a separate
-  # image-only model. That also removes the one unverified id this slot carried
-  # (nvidia/ising-calibration-1.5-31b below was never live-tested from this
-  # sandbox -- build.nvidia.com is egress-blocked here). The Super VL id IS
-  # live-verified (see the `nvidia-nim` provider entry).
+  # VISION: nemotron-3.5-super-vl-120b-a12b. The "VL" in that id is the point: it is
+  # a vision-language model (image, video and text in), so the parent can see and
+  # this slot needs no separate image-only model. The id is live-verified (see the
+  # `nvidia-nim` provider entry).
   #
-  # STILL PINNED, NEVER `auto`, and for the same reason as before even though the
-  # parent can now see: `auto` means "use the main model", so an image task would
+  # PINNED, NEVER `auto`: `auto` means "use the main model", so an image task would
   # silently follow every future parent change -- including to one with no vision
-  # encoder -- and report a bad answer rather than a missing capability.
+  # encoder -- and report a bad answer rather than a missing capability. The local
+  # floor model is text-only too (Llama 3.2's vision variants are the 11B/90B
+  # line), and this slot is cloud-only: vision fails with no network.
   #
   # This slot shares the parent's provider and model on purpose; the CI block
   # allows exactly that, and nothing else on the parent's provider. The other
-  # auxiliary slots stay OFF the NIM bucket (see compression/web_extract on
-  # or-fallback and the five 3B local slots below): they are frequent, and each
-  # one is a request taken from the parent's ~40 RPM.
-  #
-  # PREVIOUS (2026-09-27 - 2026-10-19): nvidia/ising-calibration-1.5-31b on this
-  # same provider, an NVIDIA-authored image-text-to-text model; its NIM API
-  # example (OpenAI-style `messages[].content` with `image_url` + `text` blocks)
-  # came from its build.nvidia.com product page. To check it is still served:
-  #     bash scripts/nim-preflight.sh --list | grep -i ising-calibration
-  #
-  # HISTORY, kept because the reasoning still applies to any future vision
-  # choice here: this slot was on `auto` back when the parent was Kimi-K3
-  # (which had vision). The parent became DeepSeek-V4-Pro, text-only -- no
-  # image path -- and `auto` silently resolved image work to a model that
-  # could not see, reported as a bad answer rather than a missing capability.
-  # The local floor model is ALSO text-only (Llama 3.2's vision variants are
-  # the 11B/90B line, not the 3B this repo runs). So this stays pinned
-  # explicitly, never `auto`.
-  #
-  # Before this: DeepSeek-V4.1-Flash on `custom:or-fallback` (2026-09-25 -
-  # 2026-09-27), itself a revert from the retired `local-vl` tier
-  # (nemotron-nano-12b-v2-vl on llama.cpp :8080). Both this and that one are
-  # cloud-only -- moving providers does not reintroduce the offline capability
-  # local-VL had; vision still fails the way the other cloud tiers do, on no
-  # network.
+  # auxiliary slots stay OFF the NIM bucket (compression/web_extract on or-fallback,
+  # the five 3B local slots below): they are frequent, and each one is a request
+  # taken from the parent's ~40 RPM.
   vision:
     provider: "custom:nvidia-nim"
     model: nvidia/nemotron-3.5-super-vl-120b-a12b
@@ -979,8 +865,7 @@ code_execution:
 # early spends a request and destroys the cache to shrink a context that was being
 # billed at a tenth of the price.
 #
-# 0.70 on a 262k window is ~183k tokens before the first compaction — still far
-# short of overflow. Do NOT raise it much further: provider-proven overflow costs
+# Do NOT raise the threshold much past 0.70: provider-proven overflow costs
 # a rejected request plus a bounded recovery pass, which is worse than the
 # compaction it avoided.
 #
@@ -989,39 +874,22 @@ compression:
   enabled: true
   threshold: 0.50          # global default, unchanged
   model_thresholds:
-    # REPLACED 2026-09-28: this used to override DeepSeek-V4-Pro's 262k metered
-    # window (0.70 -> ~183k tokens before compaction, worth it there
-    # specifically to avoid re-paying for a cache reset on a paid tier). The
-    # parent is now a local model with no per-token billing and no provider
-    # prompt cache to invalidate, so THAT trade doesn't apply -- but compaction
-    # still costs a real request and real latency locally, and the CI check
-    # requires a threshold keyed to whatever the parent actually is (it used to
-    # hardcode kimi-k3 and silently stop guarding anything once the parent
-    # moved on; substring-matching the live parent id is the fix for that).
+    # Fallback 2 (nvidia/nemotron-3.5-lightning-30b-a3b on NIM). It spends the same ~40 RPM bucket as the
+    # parent, so a compaction costs it the same request; held at the parent's 0.70
+    # rather than the 0.50 global default. Not tuned against Lightning's real window.
+    "nemotron-3.5-lightning": 0.70
+    # PARENT: nemotron-3.5-super-vl-120b-a12b on NIM. The CI check resolves a key
+    # against the parent id by case-insensitive substring, longest key wins, so
+    # this one has to be a substring of the parent id.
     #
-    # 0.65, not the old 0.70: the local `providers.local.context_length` this
-    # parent shares with the 3B floor and the aggregator is 32768, an order of
-    # magnitude below DeepSeek's 262144 -- there is much less room to defer
-    # compaction into, so less headroom is claimed here on purpose. Re-tune
-    # once `providers.local.context_length` itself gets re-tuned for the 49B
-    # (see that provider's own comment -- not yet done). That key is kept: the
-    # 49B is still fallback 2 (it was the MoA aggregator until 2026-10-19), and
-    # a model that compacts at the global 0.50 default is the quiet failure this
-    # block exists to stop.
-    "Nemotron-Super-49B-v1_5": 0.65
-    # PARENT, 2026-10-19: nemotron-3.5-super-vl-120b-a12b on NIM. The CI check
-    # resolves a key against the parent id by case-insensitive substring, longest
-    # key wins, so this one has to be a substring of the parent id.
-    #
-    # 0.70: the parent is a cloud model again, and the trade from the DeepSeek era
-    # applies again -- every compaction costs a request out of a shared ~40 RPM
-    # bucket, and it rewrites history, which resets any provider-side prompt cache.
-    # Held below the 0.80 ceiling CI enforces. Computed against the CONFIGURED
-    # window (providers.nvidia-nim.context_length = 131072, not re-measured), so
-    # 0.70 is ~91.7k tokens before the first compaction. Re-tune once that number
-    # is measured with scripts/nim-preflight.sh.
+    # 0.70: every compaction costs a request out of a shared ~40 RPM bucket, and it
+    # rewrites history, which resets any provider-side prompt cache. Held below the
+    # 0.80 ceiling CI enforces. Computed against the CONFIGURED window
+    # (providers.nvidia-nim.context_length = 131072, not re-measured), so 0.70 is
+    # ~91.7k tokens before the first compaction. Re-tune once that number is
+    # measured with scripts/nim-preflight.sh.
     "nemotron-3.5-super-vl": 0.70
-    # MOA AGGREGATOR, 2026-10-19: nemotron-3-ultra-550b-a55b. On a MoA turn the
+    # MOA AGGREGATOR: nemotron-3-ultra-550b-a55b. On a MoA turn the
     # aggregator is the ACTING model for the whole tool loop (Hermes docs), so it
     # is the model whose window compacts -- a key matching only the parent would
     # leave it on the global 0.50 default. Same reasoning and same number as the
@@ -1073,13 +941,9 @@ provider_routing:
 # ---------------------------------------------------------------------------
 # PROMPT CACHING
 #
-# Added 2026-09-23 after diffing this file against upstream's 2267-line
-# cli-config.yaml.example. This build was using 16 of the 25 top-level keys the
-# reference documents; the nine it was not using were not decisions, they were
-# things nobody had read. Every key below was verified present in the hermes-agent
-# source before being written here -- `prompt_caching` and `cache_ttl` resolve in 14
-# and 11 source files respectively -- because a config key that nothing reads is the
-# exact silent failure this build keeps paying for.
+# Every key below was verified present in the hermes-agent source -- `prompt_caching`
+# and `cache_ttl` resolve in 14 and 11 source files respectively -- because a config
+# key that nothing reads is a silent failure.
 #
 # WHY "1h" AND NOT THE "5m" DEFAULT. The upstream comment says to use 1h "for long
 # sessions with pauses between turns", which is precisely the shape of this build:
@@ -1097,7 +961,7 @@ prompt_caching:
 # is to warn rather than stop. That is right at a terminal, where a human sees the
 # warning. It is wrong for anything this build delegates -- subagents on NIM, Codex
 # runs through the MCP shim -- because nobody is watching and a loop burns the
-# shared NIM rate-limit bucket (the parent's too, since 2026-10-19) until the
+# shared NIM rate-limit bucket (the parent's too) until the
 # task times out.
 #
 # `non_interactive_hard_stop_enabled` is the key that matters here and it is ALREADY
@@ -1131,7 +995,7 @@ tool_loop_guardrails:
 # brings in are live with no second step.
 #
 # The trade is that the checkout must exist wherever Hermes runs, and a deleted or
-# moved repo silently removes 29 skills. Decide deliberately; do not just uncomment it.
+# moved repo silently removes every skill. Decide deliberately; do not just uncomment it.
 # ---------------------------------------------------------------------------
 skills:
   # Every N tool-calling iterations, nudge the model to consider saving a skill.

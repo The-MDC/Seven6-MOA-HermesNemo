@@ -9,7 +9,7 @@ metadata:
   hermes:
     tags: [Research, Synthesis, Multi-Source, Report]
     category: research
-    related_skills: [market-research]
+    related_skills: []
 ---
 
 # Coordinating Deep Research

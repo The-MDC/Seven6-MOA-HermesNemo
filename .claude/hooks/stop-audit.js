@@ -8,14 +8,9 @@
  *         console.log audit: Check all modified files for console.log before
  *         session ends
  *
- *     `.claude/hooks/hooks.json` pointed its `stop` event at
- *     `.cursor/hooks/stop.js`, which does not exist, under an event name Claude
- *     Code does not emit. The existing `.claude/hooks/stop.js` is a forwarder to
- *     Cursor hooks (`check-console-log.js`, `cost-tracker.js`) that were never in
- *     this repository — see the note in adapter.js. So the rule was written down
- *     and never enforced. This enforces it.
+ *     This enforces it.
  *
- * WHY A SECOND console.log CHECK
+ *WHY A SECOND console.log CHECK
  *     post-edit-check.js catches one file at the moment it is written, which is
  *     easy to scroll past mid-turn. This one looks at the whole working tree at
  *     the end and reports what actually survived to the end of the session — the

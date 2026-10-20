@@ -21,22 +21,30 @@ does not lift it:
 | a human, or Claude with desktop access | everything from the start | — |
 
 **So the bootstrap is yours.** Steps 1.1 through 1.3 — installing Ollama and
-pulling `hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0` (swapped
-from `hermes3:8b` 2026-09-25) — have to be run by a person or by a Claude session
+pulling `hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0` — have to be run by a person or by a Claude session
 that holds a desktop link. Once that model answers, the prompt below hands the
 rest over.
 
-There used to be a second row here for `nemotron-nano-12b-v2-vl` on `llama-server
-:8080` -- the `local-vl` vision tier's own bootstrap constraint, since starting
-`llama-server` with `--mmproj` was its own manual step. That tier is retired
-(2026-09-25, on request), and with it the whole second bootstrap path: there is
-only one local model now, pulled with one `ollama pull` command, and nothing
-else to hand-start before Hermes can take over.
+There is one local model to bootstrap, pulled with one `ollama pull` command, and
+nothing else to hand-start before Hermes can take over.
+
+## Why some steps can never be delegated
+
+Three different reasons, and they are worth telling apart:
+
+| Reason | Steps | Why Hermes cannot |
+|---|---|---|
+| **Credentials** | the `.env` keys | Only you hold them. Nothing in this repo has ever contained one, and `.gitignore` enforces that. A step that asks an agent to handle a key is a step that logs it. |
+| **Bootstrap** | installing Ollama and pulling the floor model | The local tier cannot install the backend that serves it. |
+| **Authority** | renaming a repo, merging a PR, rotating a live token | Consequences outside this machine. |
+
+Everything after the bootstrap, meaning the config install, verification and reading
+output back, Hermes runs.
 
 ## The prompt
 
 ```text
-You are running the Seven6-Hermes-MOA build's own takeover runbook on this machine.
+You are running the Seven6-MOA [Nemo-Hermes] build's own takeover runbook on this machine.
 
 Read these two skills before doing anything, and follow them:
   operations/local-desktop          how to use terminal, process and execute_code here
@@ -87,7 +95,5 @@ provider's endpoint and model id **out of the installed config** rather than
 restating them, so it cannot drift from what Hermes actually sends — which is how the
 OpenRouter id stayed wrong through a merge once.
 
-There is no port-8080 check to expect a `FAIL` from anymore -- that was
-`local-vl`'s llama-server, retired 2026-09-25 along with `hermes3:8b`. A genuine
-`FAIL` anywhere in this output now means something to actually fix, not a
-known, expected gap.
+A `FAIL` anywhere in this output means something to actually fix, not a known,
+expected gap.

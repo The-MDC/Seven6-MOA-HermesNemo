@@ -20,12 +20,12 @@ nothing complained.
 | subagents, vision, MoA reference | `custom:nvidia-nim` | the same model, the same bucket |
 | MoA aggregator | `custom:nvidia-nim` | `nvidia/nemotron-3-ultra-550b-a55b` (text-only), the one deliberate exception; it is the acting model on a MoA turn |
 | 429 fallback + heavy aux | `custom:or-fallback` | fallback 1; `compression`, `web_extract` |
-| offline fallback | `custom:local` | fallback 2 (49B GGUF), fallback 3 + 5 light auxiliary slots (3B) |
+| model-level fallback | `custom:nvidia-nim` | fallback 2: `nvidia/nemotron-3.5-lightning-30b-a3b` (same bucket as the parent; answers a model failure, not a 429) |
+| offline fallback | `custom:local` | fallback 3 + 5 light auxiliary slots (3B) |
 | unrouted | `custom:anthropic-direct` | configured, reachable only via `/model` |
 
-`vision` used to be its own tier (`custom:local-vl`, llama-server :8080). Retired
-2026-09-25 along with the old floor model (hermes3:8b) — `vision` now routes to the
-primary on `custom:nvidia-nim` (a vision-language model; 2026-10-19), and the floor is a single, smaller Ollama tag
+`vision` routes to the primary on `custom:nvidia-nim` (a vision-language model), and
+the floor is a single Ollama tag
 (`hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0`, pulled via
 Ollama's own hf.co/ feature, no second local service).
 
@@ -34,9 +34,7 @@ Three structural rules hold it together. Break any one and it fails **silently**
 1. **Provider references must dodge `excluded_providers`.** `deepseek`, `openrouter`
    and `ollama` are all excluded, and exclusion matches every key a provider surfaces
    under. That is why the remaining entries are named `or-fallback` and `local` —
-   an entry named after its own exclusion hides itself. (There was an `hf-router`
-   entry too, exclusion-safe the same way; removed 2026-09-28 once DeepSeek, the
-   only thing it ever served, was gone.)
+   an entry named after its own exclusion hides itself.
 2. **One model per bucket.** A slot may share the parent's provider only on the
    parent's exact model, only `vision` among the auxiliaries may, and every fallback
    must sit on a different endpoint from the parent. Parent, subagents and vision now
@@ -53,8 +51,9 @@ The single most expensive mistake this build has made. The same weights are name
 differently by each gateway:
 
 ```
-Hugging Face router   deepseek-ai/DeepSeek-V4.1-Flash
-OpenRouter            deepseek/deepseek-v4.1-flash
+Hugging Face          nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B
+NVIDIA NIM            nvidia/nemotron-3.5-super-vl-120b-a12b
+Vercel AI Gateway     nvidia/nemotron-3.5-super-vl
 ```
 
 Copying an id from a model card, or from one provider to another, is wrong by

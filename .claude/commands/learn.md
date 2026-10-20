@@ -44,18 +44,6 @@ If patterns are significant, suggest updates to:
 - `skills/[domain]/SKILL.md`
 - `rules/[category].md`
 
-## Instinct Format (for continuous-learning-v2)
-
-```json
-{
-  "trigger": "[situation that triggers this learning]",
-  "action": "[what to do]",
-  "confidence": 0.7,
-  "source": "session-extraction",
-  "timestamp": "[ISO timestamp]"
-}
-```
-
 ---
 
 **TIP**: Run `/learn` periodically during long sessions to capture insights before context compaction.

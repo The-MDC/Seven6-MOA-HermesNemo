@@ -52,9 +52,7 @@ NIM_BASE="${NVIDIA_NIM_BASE_URL:-https://integrate.api.nvidia.com/v1}"
 # NIM gateway's id for the weights; other gateways use other ids for them (Vercel
 # nvidia/nemotron-3.5-super-vl, Hugging Face nvidia/NVIDIA-Nemotron-3.5-Super-VL-
 # 120B-A12B, local alias nemotron-3.5-super-vl) -- never paste those here.
-# History: nvidia/llama-3.3-nemotron-super-49b-v1.5 died 2026-08-26 (HTTP 410);
-# nvidia/nemotron-3-nano-omni-30b-a3b-reasoning carried the subagent role until
-# the primary moved. Override with NVIDIA_NIM_MODEL to probe either.
+# Override with NVIDIA_NIM_MODEL to probe another id (a retired id answers HTTP 410).
 NIM_MODEL="${NVIDIA_NIM_MODEL:-nvidia/nemotron-3.5-super-vl-120b-a12b}"
 OR_BASE="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}"
 LOCAL_BASE="${LOCAL_MODEL_BASE_URL:-http://127.0.0.1:11434/v1}"
@@ -282,6 +280,90 @@ else
     bad "tool-calling probe: HTTP $CODE"
 fi
 
+# ----------------------------------------------------------- reasoning knobs --
+#
+# The Super VL model card documents `enable_thinking` and `medium_effort` through
+# `chat_template_kwargs`. Nobody has checked that the HOSTED endpoint honours them,
+# or how Hermes' reasoning_effort maps onto them. This sends one request with
+# thinking switched off and reports what comes back. It is informational: a
+# rejection warns, never fails, because the route works without the knob.
+# Accepted is not the same as effective, so the output says what it observed and
+# nothing more.
+hdr "reasoning knobs (observational)"
+
+cat > "$TMP/think.json" <<JSON
+{"model":"$NIM_MODEL",
+ "messages":[{"role":"user","content":"Reply with the single word: ready"}],
+ "max_tokens":256,
+ "chat_template_kwargs":{"enable_thinking":false},
+ "stream":false}
+JSON
+
+CODE=$(curl -sS -o "$TMP/thinkres.json" -w '%{http_code}' --max-time 120 \
+    -H "Authorization: Bearer $NVIDIA_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d @"$TMP/think.json" \
+    "$NIM_BASE/chat/completions" 2>/dev/null) || CODE="000"
+
+case "$CODE" in
+    200)
+        if grep -q '"reasoning_content"\|"reasoning"' "$TMP/thinkres.json" 2>/dev/null; then
+            warn "chat_template_kwargs.enable_thinking=false was accepted, but the reply still carries reasoning text. The knob may not take effect on this endpoint."
+        else
+            ok "chat_template_kwargs.enable_thinking=false accepted; the reply carries no reasoning text"
+        fi ;;
+    400|422)
+        warn "chat_template_kwargs rejected (HTTP $CODE). The model-card knobs are not usable through this endpoint; leave them out of config.yaml." ;;
+    429)
+        warn "reasoning-knob probe: 429, rate limited, not a capability result" ;;
+    *)
+        warn "reasoning-knob probe: HTTP $CODE" ;;
+esac
+
+# --------------------------------- reasoning on + force_nonempty_content ------
+#
+# NVIDIA's Super VL cookbook: when tool calling with reasoning enabled, pass
+# `force_nonempty_content: true` in chat_template_kwargs. config.yaml carries that
+# as a commented `extra_body` under providers.nvidia-nim. This probe is the gate
+# for uncommenting it: `ok` means the hosted endpoint accepted the field AND the
+# reply carried tool_calls. A 400/422 means leave the line commented, because the
+# same field would then fail every turn.
+hdr "reasoning on + force_nonempty_content (gate for the extra_body line)"
+
+cat > "$TMP/fne.json" <<JSON
+{"model":"$NIM_MODEL",
+ "messages":[{"role":"user","content":"What is the weather in Santa Fe? Use the tool."}],
+ "max_tokens":2048,
+ "chat_template_kwargs":{"enable_thinking":true,"force_nonempty_content":true},
+ "tools":[{"type":"function","function":{
+   "name":"get_weather",
+   "description":"Get current weather for a city",
+   "parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],
+ "tool_choice":"auto",
+ "stream":false}
+JSON
+
+CODE=$(curl -sS -o "$TMP/fneres.json" -w '%{http_code}' --max-time 180 \
+    -H "Authorization: Bearer $NVIDIA_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d @"$TMP/fne.json" \
+    "$NIM_BASE/chat/completions" 2>/dev/null) || CODE="000"
+
+case "$CODE" in
+    200)
+        if grep -q '"tool_calls"' "$TMP/fneres.json" 2>/dev/null; then
+            ok "force_nonempty_content accepted and tool_calls returned: safe to uncomment extra_body in config.yaml"
+        else
+            warn "force_nonempty_content accepted (200) but no tool_calls came back. Re-run once; if it repeats, leave the extra_body line commented."
+        fi ;;
+    400|422)
+        warn "force_nonempty_content REJECTED (HTTP $CODE). Leave the extra_body line commented in config.yaml." ;;
+    429)
+        warn "force_nonempty_content probe: 429, rate limited, not a capability result" ;;
+    *)
+        warn "force_nonempty_content probe: HTTP $CODE" ;;
+esac
+
 # ------------------------------------------------------------- other buckets --
 #
 # The PARENT, subagents, MoA reference and vision all run on NIM now (primary
@@ -312,9 +394,6 @@ check_bucket() {   # name  base_url  key_value  purpose
 }
 
 if [ "$NIM_ONLY" = "0" ]; then
-    # The Hugging Face router check that used to sit here is gone with the
-    # `hf-router` provider (removed 2026-09-28): it warned "no key set" on every
-    # run for a tier that no longer exists.
     hdr "fallback bucket — OpenRouter ($OR_BASE)"
     check_bucket "openrouter" "$OR_BASE" "${OPENROUTER_API_KEY:-}" "the 429 fallback"
 

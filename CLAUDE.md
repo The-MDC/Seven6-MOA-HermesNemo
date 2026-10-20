@@ -1,4 +1,4 @@
-# Seven6-Hermes-MOA — Claude Code context
+# Seven6-MOA [Nemo-Hermes] — Claude Code context
 
 ## What this repo is
 
@@ -10,6 +10,13 @@ you are about to add any, you are in the wrong repo. `SCRUB` in
 `scripts/port-skills-to-hermes.js` removes product references from ported skill
 content, and the port fails if one survives into the output tree.
 
+## Two context files, on purpose
+
+This file is for Claude Code. **Hermes loads `.hermes.md` instead of this file** when it runs
+from this checkout (its priority is `.hermes.md` > `AGENTS.md` > `CLAUDE.md`, and only one
+loads). `.hermes.md` is short because Super VL has 12B active parameters, a 131k window and
+a ~40 RPM bucket; CI caps its size. Change routing facts in both.
+
 ## The routing
 
 ```
@@ -19,7 +26,7 @@ vision      custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   pinned
 moa ref     custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b
 aggregator  custom:nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b        the one deliberate exception (2026-10-19), text-only
 fallback 1  custom:or-fallback   qwen/qwen3.5-122b-a10b              429 escape + 2 heavy aux (compression, web_extract)
-fallback 2  custom:local         Llama-3.3-Nemotron-Super-49B-v1.5, UD-Q8_K_XL (Ollama)  offline, full strength
+fallback 2  custom:nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b               model-level failover (2026-10-19); same bucket as the parent, so it cannot answer a 429
 fallback 3  custom:local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0 (Ollama)   last resort + 5 light aux slots
 unrouted    custom:anthropic-direct  claude-sonnet-5                 configured, intact, reachable only via /model
 ```
@@ -53,16 +60,14 @@ asked for, because a forum report says the hosted endpoint once did not.
 **One bucket now.** Parent, subagents, MoA reference and vision share one ~40 RPM
 NIM key. The CI block enforces the replacement rule: a slot may share the parent's
 provider only on the parent's exact model, only `vision` among the auxiliaries may,
-and every `fallback_providers` link must sit on a different endpoint from the
-parent, because a 429 on NIM cannot be answered from NIM. The old fallback 1
-(nano-omni on the same NIM key) was removed from the chain for that reason.
+and the FIRST `fallback_providers` link must sit on a different endpoint from the
+parent, because a 429 on NIM cannot be answered from NIM. The one named later link back on NIM
+is `nvidia/nemotron-3.5-lightning-30b-a3b`; CI requires it to be non-first, to differ from the parent's model
+and to be listed under `providers.nvidia-nim.models`.
 
-`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` is still in the NIM picker and
-routed nowhere. DeepSeek and `hf-router` stay removed (2026-09-28); `local-vl` and
-hermes3:8b stay removed (2026-09-25). `nvidia/llama-3.3-nemotron-super-49b-v1.5` is
-dead (HTTP 410, end-of-life 2026-08-26), which a "triangulated against three
-resellers" check missed and `bash scripts/nim-preflight.sh --list | grep -i
-nemotron` would have caught. Run that after any NVIDIA model swap.
+`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` is in the NIM picker and routed
+nowhere. A retired NIM id answers HTTP 410, not a config error, so run
+`bash scripts/nim-preflight.sh --list | grep -i nemotron` after any NVIDIA model swap.
 
 Three rules that have each cost a session here:
 
@@ -104,6 +109,7 @@ python3 scripts/check-capabilities.py             # registry vs disk
 node   scripts/port-skills-to-hermes.js           # re-port; prints `scrub: clean`
 node   scripts/port-skills-to-hermes.js --check   # upstream drift, writes nothing
 bash   scripts/repo-doctor.sh                     # toolchain, hooks, egress
+node   scripts/gateway-doctor.js                 # sticky profile (exit 78), plugin symlink stubs
 pwsh -File scripts/hermes-verify.ps1              # the acceptance gate, on the box
 ```
 
@@ -132,12 +138,12 @@ before trusting it.
 
 ## Skills and commands
 
-Skills live in `.claude/skills/` by domain: marketing, sales, product, engineering,
-data, operations, legal, finance, productivity, cowork, ecc.
+Skills live in `.claude/skills/` by domain: engineering, operations, ecc. The current
+counts come from `python3 scripts/check-capabilities.py`, never from prose.
 
 Commands live in `.claude/commands/`:
-`/orchestrate` `/quality-gate` `/harness-audit` `/learn` `/evolve` `/skill-create`
-`/model-route` `/plan` `/security` `/checkpoint` `/doctor` `/market-brief`
+`/orchestrate` `/quality-gate` `/learn` `/skill-create` `/plan` `/security`
+`/checkpoint` `/doctor`
 
 ## Hooks
 
@@ -150,8 +156,5 @@ Wired in `.claude/settings.json` — the only file Claude Code reads hooks from.
 - `pre-bash-guard.js` — `PreToolUse` / `Bash` — blocks `--no-verify` git hook bypass (the only blocking hook)
 - `stop-audit.js` — `Stop` — console.log sweep across changed files
 
-**Not active**: `session-start.js`, `session-end.js`, `pre-compact.js` and `stop.js`
-are unwired forwarders to Cursor hooks that were never in this repo — they do
-nothing. `.claude/hooks/hooks.json` was a Cursor config (Cursor event names,
-`.cursor/` paths that never existed) and has been removed; Claude Code never read it.
-See `.claude/hooks/README.md`.
+Nothing else is wired. Claude Code reads hooks only from `.claude/settings.json`. See
+`.claude/hooks/README.md`.

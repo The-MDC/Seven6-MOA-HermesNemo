@@ -9,7 +9,7 @@ metadata:
   hermes:
     tags: [MCP, TypeScript, Zod, stdio, HTTP]
     category: software-development
-    related_skills: [api-design, backend-patterns, frontend-design, mcp-builder, verification-loop]
+    related_skills: [api-design, backend-patterns, mcp-builder, verification-loop]
 ---
 
 # MCP Server Patterns

@@ -8,7 +8,7 @@
 
   Every existing file is backed up to <name>.bak-<timestamp> FIRST. Nothing is
   overwritten without a copy surviving, because the deployed config has drifted
-  from this repo before (docs/models/handoff-2026-09-22.md) and the deployed side
+  from this repo before (docs/models/HANDOFF-NEXT-SESSION.md) and the deployed side
   may hold changes nobody wrote down.
 
   Touches no .env and no credential. Keys are read by Hermes from

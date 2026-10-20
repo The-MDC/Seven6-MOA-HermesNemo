@@ -18,11 +18,8 @@
 
   Then reports whether the one model config.yaml's `local` provider actually
   expects (`hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0`) was
-  found, and flags anything on disk that ISN'T referenced by any provider -- the
-  dead-weight class of problem this repo already hit once with a stray
-  nemotron-nano:12b-v2 download that nothing ever routed to. (As of 2026-09-25
-  there is only the one local provider: `local-vl`, the second local tier this
-  script used to also cross-check, was retired the same day hermes3:8b was.)
+  found, and flags anything on disk that ISN'T referenced by any provider -- dead
+  weight that nothing routes to. There is only the one local provider.
 
 .EXAMPLE
   pwsh -File scripts/inventory-local-models.ps1

@@ -1,36 +1,13 @@
 # Harness checks.
 #
-# WHY THIS EXISTS
-#     Two reasons, and the second one is not obvious.
+# This workflow gates what this repo ships: syntax on every script, the Hermes config's
+# routing invariants (which fail silently on the desktop rather than erroring), the
+# capability registry against disk, doc references, and legacy-name regressions.
 #
-#     1. It gates the checks this repo ships: syntax on every script, and the Hermes
-#        config's routing invariants, which fail silently on the desktop rather than
-#        erroring. A canonical-numbers gate also lived here and was removed with the
-#        owner's explicit approval — the numbers remain canonical and CLAUDE.md
-#        remains their declaration, but agreement is now a human review step in
-#        .github/PULL_REQUEST_TEMPLATE.md rather than a CI failure. The gate scanned
-#        every restatement in the tree, so an unrelated PR that merely reworded a
-#        sentence near a number could paint CI red.
+# It deliberately does NOT gate on scripts/repo-doctor.sh. The doctor checks the
+# MACHINE (toolchain, network egress, whether `hermes` is on PATH), and a CI runner is
+# not the machine the build runs on. Run it locally.
 #
-#     2. It gives CodeQL's `actions` extractor something to extract. Code scanning
-#        default setup has the `actions` language enabled for this repository, and on a
-#        pull request the analysis is diff-informed: it looks at the files this PR
-#        changes, not the whole tree. This PR's first commit added .github/ content that
-#        contains no workflow — a PR template — so the actions extractor had nothing in
-#        the diff range it could parse, and "Analyze (actions)" failed with:
-#            "CodeQL could not process any code written in GitHub Actions."
-#            "CodeQL job status was configuration error."
-#        The base branch passes the same job because its diffs do touch
-#        .github/workflows/agentic-compile.yml. Putting a real workflow in this PR's own
-#        diff is the fix.
-#
-# Deliberately does NOT gate on scripts/repo-doctor.sh yet. The doctor currently
-# exits 1 on a real, pre-existing bug — .claude/hooks/hooks.json references 15 scripts
-# under .cursor/hooks/, a directory that does not exist, so none of those hooks have
-# ever run. Gating on it now would paint CI red for a defect this workflow did not
-# introduce and cannot fix. Masking it with continue-on-error would be worse: a check
-# that cannot fail is not a check. It becomes a gate in the PR that repairs the hooks.
-
 name: checks
 
 on:
@@ -146,7 +123,7 @@ jobs:
 
           providers = d["providers"]
           # Assert the key exists before indexing it. Renaming this provider is a
-          # real deployment shape (handoff-2026-09-22.md reports `nvidia`), and
+          # real deployment shape (an earlier deployment reported `nvidia`), and
           # indexing a missing key raises a bare KeyError that names no cause —
           # the one failure mode most likely to hit someone mid-reconciliation.
           assert "nvidia-nim" in providers, \
@@ -329,19 +306,36 @@ jobs:
                           f"{cfg.get('model')!r}, not the parent's {parent_default!r}"
               assert cfg.get("model"), f"auxiliary.{task} names a provider but no model"
 
-          # A fallback can only answer a failure of the parent if it does not share
-          # the parent's endpoint. With the parent on a cloud bucket this is the
-          # check that matters: a 429 on nvidia-nim cannot be answered from
-          # nvidia-nim, and the old chain led with exactly that.
+          # A fallback can only answer a 429 on the parent if it does not share the
+          # parent's endpoint. With the parent on a cloud bucket this is the check
+          # that matters: a 429 on nvidia-nim cannot be answered from nvidia-nim, and
+          # the old chain led with exactly that. So the FIRST link must be off the
+          # parent's endpoint.
+          #
+          # One sanctioned shape for a LATER link: back on the parent's endpoint, on a
+          # DIFFERENT model that the provider lists (nvidia/nemotron-3.5-lightning-30b-a3b on NIM,
+          # 2026-10-19, on request). It spends the same bucket, so it cannot answer a
+          # 429; it can answer a failure of the parent MODEL (retired id, a 5xx).
+          # Listed-under-models is required for the same reason as the aggregator:
+          # discover_models:false turns an unlisted id into a silent fallback to the
+          # main model, not an error.
           parent_name = parent_provider.split(":", 1)[1] if parent_provider.startswith("custom:") else parent_provider
           parent_host = urlparse(providers[parent_name]["api"]).netloc if parent_name in providers else None
+          parent_listed = set(providers[parent_name].get("models") or []) if parent_name in providers else set()
           fallbacks = d.get("fallback_providers") or []
           assert fallbacks, "fallback_providers: is empty — a 429 on the parent would stop the session"
           for i, fb in enumerate(fallbacks):
               fb_host = urlparse(fb.get("base_url", "")).netloc
-              assert not (parent_host and fb_host == parent_host), \
-                  f"fallback_providers[{i}] ({fb.get('model')}) is on the parent's endpoint " \
-                  f"({parent_host}) — it shares the bucket that just failed"
+              if parent_host and fb_host == parent_host:
+                  assert i > 0, \
+                      f"fallback_providers[0] ({fb.get('model')}) is on the parent's endpoint " \
+                      f"({parent_host}) — the first link is the 429 escape and must sit on a different bucket"
+                  assert fb.get("model") != d["model"]["default"], \
+                      f"fallback_providers[{i}] is the parent's own model on the parent's endpoint — " \
+                      f"it can answer nothing the parent could not"
+                  assert fb.get("model") in parent_listed, \
+                      f"fallback_providers[{i}] ({fb.get('model')}) is on the parent's endpoint but is not " \
+                      f"listed under providers.{parent_name}.models — an unlisted id resolves silently to the main model"
 
           # Every provider REFERENCE must resolve to something that can actually
           # serve. The exclusion check above compares excluded_providers against the
@@ -349,7 +343,7 @@ jobs:
           # points at, and both ways a reference dies are silent: Hermes resolves a
           # dead one by falling back to the main model, so the symptom is a bill and
           # a latency change, not an error. Both were observed on a live deployment,
-          # recorded in docs/models/handoff-2026-09-22.md.
+          # recorded in docs/models/HANDOFF-NEXT-SESSION.md.
           #
           #   1. The reference names a provider that is also EXCLUDED. The exclusion
           #      hides it, so the slot silently reverts to the parent. A config with
@@ -497,6 +491,42 @@ jobs:
                   f"default OpenAI routing, never a silent custom provider " \
                   f"(docs/models/codex-handoff.md)"
 
+          # ---- Super VL compensations (2026-10-19) -------------------------------
+          # Super VL is a 12B-active model on a 131k window and one ~40 RPM bucket, so
+          # per-request prompt weight is a cost every turn. Three things keep it down,
+          # and each one fails SILENTLY if it drifts: nothing errors, the prompt just
+          # grows.
+          #
+          # 1. Every MCP server switches off its utility tools. Hermes registers four per
+          #    server (list/read resources, list/get prompts) unless told not to.
+          for name, srv in mcp.items():
+              t = srv.get("tools") or {}
+              assert t.get("prompts") is False and t.get("resources") is False, \
+                  f"mcp_servers.{name}.tools must set prompts: false and resources: false " \
+                  f"(four unused catalog entries per server otherwise)"
+          # 2. tool_search stays pinned on, with its listing. Off, every MCP schema goes
+          #    back into every request. A bare bridge (listing off) leaves the model
+          #    unable to see tool names at all.
+          ts = (d.get("tools") or {}).get("tool_search") or {}
+          assert ts.get("enabled") in ("on", "auto"), \
+              f"tools.tool_search.enabled must be 'on' or 'auto' (quoted), got {ts.get('enabled')!r}"
+          assert ts.get("listing", "auto") in ("on", "auto"), \
+              f"tools.tool_search.listing must be 'on' or 'auto', got {ts.get('listing')!r}"
+          # 3. Hermes loads ONE project context file and prefers .hermes.md over CLAUDE.md.
+          #    The short one has to exist, stay short, carry no Claude-Code-only
+          #    vocabulary, and name the models the config actually routes to. Reading the
+          #    ids out of the config keeps this check from holding its own copy.
+          assert os.path.exists(".hermes.md"), \
+              ".hermes.md is missing: Hermes would load the long, Claude-Code-oriented CLAUDE.md"
+          hm = open(".hermes.md", encoding="utf-8").read()
+          assert len(hm.encode()) <= 3000, \
+              f".hermes.md is {len(hm.encode())} bytes; the cap is 3000. It is paid on every request"
+          for banned in ("AskUserQuestion", "TodoWrite", ".claude/", "Claude Code", "security-review"):
+              assert banned not in hm, f".hermes.md mentions {banned!r}, which Hermes cannot act on"
+          for needed in (d["model"]["default"], agg_model):
+              assert needed in hm, \
+                  f".hermes.md does not name {needed}; it has drifted from config.yaml"
+
           print("hermes config: OK")
           print("  primary   ", d["model"]["provider"], d["model"]["default"])
           print("  subagents ", deleg["provider"], deleg["model"])
@@ -543,6 +573,28 @@ jobs:
           set -euo pipefail
           python3 scripts/check-capabilities.py
 
+      # gateway-doctor.js is only a check if it can fail. This builds one home that
+      # must pass and two that must fail (a sticky named profile; the 43-byte text a
+      # Windows git checkout leaves where a symlink was) and asserts all three exit
+      # codes. Drop either detector and the matching case turns this step red.
+      - name: Gateway doctor passes a clean home and fails both known faults
+        shell: bash
+        run: |
+          set -euo pipefail
+          T="$(mktemp -d)"
+          mkdir -p "$T/good/plugins/p/desktop" "$T/sticky" "$T/stub/plugins/p/desktop"
+          echo default > "$T/good/active_profile"
+          printf 'export default {}\n' > "$T/good/plugins/p/desktop/plugin.js"
+          echo seven6moa > "$T/sticky/active_profile"
+          printf '../pkg/desktop/plugin.js' > "$T/stub/plugins/p/desktop/plugin.js"
+          node scripts/gateway-doctor.js --home "$T/good" --no-cli
+          for bad in sticky stub; do
+            if node scripts/gateway-doctor.js --home "$T/$bad" --no-cli; then
+              echo "gateway-doctor passed the '$bad' fixture, which must fail"; exit 1
+            fi
+          done
+          echo "gateway-doctor: OK"
+
       # A doc reference that points at a file which does not exist is the same class
       # of silent failure as a hook pointing at a missing script: nothing errors, the
       # reader just follows a dead pointer. One shipped in this PR before this gate
@@ -574,3 +626,25 @@ jobs:
       # future session adding a repo-wide content gate should scope it to the files
       # that can actually carry the thing being checked. The port script's own scrub
       # assertion is scoped that way: it reads only the tree it just wrote.
+
+      # The build's display name is "Seven6-MOA [Nemo-Hermes]". Earlier names kept
+      # reappearing in prose, so this fails when one comes back. Case-sensitive on
+      # purpose: the lowercase repo slug (seven6-hermes-moa) and the Hermes profile id
+      # (seven6moa) are machine identifiers that must stay. This file is excluded
+      # because it has to spell the patterns.
+      - name: No legacy names
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in README.md CLAUDE.md .hermes.md; do
+            grep -q 'Seven6-MOA \[Nemo-Hermes\]' "$f" || { echo "MISSING display name in $f"; exit 1; }
+          done
+          hits=$(git ls-files -z | grep -zv '^\.github/workflows/checks\.yml$' \
+            | xargs -0 grep -nIE 'Seven6-Hermes-MOA|Hermes-MOA-Build|Hermes-MOA-B|Seven6MOA|hermes-codex-build|Hermes-MOA-Nemotron|hermes-moa-build|moa-b/' || true)
+          if [ -n "$hits" ]; then echo "$hits"; echo "legacy name(s) found"; exit 1; fi
+          # Gateways and models that were removed from this build. `deepseek` itself stays
+          # legitimate: it is an excluded provider key in config.yaml, not a route.
+          gone=$(git ls-files -z | grep -zv '^\.github/workflows/checks\.yml$' \
+            | xargs -0 grep -nIiE 'hf-router|local-vl|hermes3:8b|kimi-k3|ising-calibration|deepseek-v4' || true)
+          if [ -n "$gone" ]; then echo "$gone"; echo "removed gateway/model name(s) found"; exit 1; fi
+          echo "no legacy names"

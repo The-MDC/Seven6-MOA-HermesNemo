@@ -35,7 +35,7 @@ warn() { printf '  %swarn%s  %s\n' "$YLW" "$RST" "$*"; WARNED=$((WARNED+1)); }
 bad()  { printf '  %sFAIL%s  %s\n' "$RED" "$RST" "$*"; FAILED=$((FAILED+1)); }
 hdr()  { [ "$QUIET" = 1 ] || printf '\n%s%s%s\n' "$DIM" "$*" "$RST"; }
 
-printf 'Seven6-Hermes-MOA build, environment check\n'
+printf 'Seven6-MOA [Nemo-Hermes] build, environment check\n'
 
 # ---------------------------------------------------------------- toolchain --
 hdr "toolchain"
@@ -74,10 +74,9 @@ RULE_COUNT=$(find .claude/rules -type f 2>/dev/null | wc -l | tr -d ' ')
 # The check this script exists for: a hook whose command points at a file that is
 # not there never runs, and never says so.
 #
-# Claude Code reads hooks from .claude/settings.json. It does NOT read
-# .claude/hooks/hooks.json — that was a Cursor config (Cursor event names such as
-# `afterFileEdit`, paths under a `.cursor/` directory that never existed here) and
-# was removed. If it reappears, say so, because nothing will ever execute it.
+# Claude Code reads hooks from .claude/settings.json only. It never reads
+# .claude/hooks/hooks.json; if that file appears, say so, because nothing will ever
+# execute it.
 if [ -f .claude/hooks/hooks.json ]; then
     warn ".claude/hooks/hooks.json is back — Claude Code never reads it; hooks belong in .claude/settings.json"
 fi
