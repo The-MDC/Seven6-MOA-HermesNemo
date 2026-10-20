@@ -169,6 +169,15 @@ providers:
     # measures on this account. A value too LOW wastes window; too HIGH overflows
     # on a rejected request.
     context_length: 131072
+    # NOT ENABLED. NVIDIA's cookbook says tool calling with reasoning on needs
+    # `force_nonempty_content: true` in chat_template_kwargs, or `content` can
+    # come back empty beside a tool call. Whether the HOSTED endpoint accepts
+    # the field is unverified, and a rejection (HTTP 400/422) would fail every
+    # turn on the only gateway. Run `bash scripts/nim-preflight.sh`; when its
+    # "reasoning on + force_nonempty_content" probe prints `ok`, uncomment:
+    # extra_body:
+    #   chat_template_kwargs:
+    #     force_nonempty_content: true
 
   or-fallback:
     name: "OpenRouter"

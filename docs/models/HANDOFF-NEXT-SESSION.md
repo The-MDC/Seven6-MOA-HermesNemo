@@ -243,6 +243,17 @@ hermes config check
 default one (`%LOCALAPPDATA%\hermes\.env`). Do not run `hermes profile use seven6moa`:
 that is the command that reproduces exit 78.
 
+**Desktop plugin "failed to load: Unexpected token '.'" (diagnosed 2026-10-19).** The
+catalog pins `hermes-project-stewardship` at commit `f10e713` (v0.5.2), where
+`desktop/plugin.js` is a git symlink (mode 120000). Git on Windows writes a symlink as a
+43-byte text file holding the target, `../hermes_dockyard_plugin/desktop/plugin.js`, and
+Desktop evaluates that text as JavaScript. The plugin's later commit `687bb03` ships a
+real 1.6 MB file that passes `node --check`. Fix: `hermes plugins remove
+hermes-project-stewardship`, then reinstall from the repository URL (check
+`hermes plugins install --help` for the argument form), or `hermes plugins disable
+hermes-project-stewardship`. `node scripts/gateway-doctor.js` reports this stub, and a
+sticky `active_profile`, on the box; CI proves both detectors can fail.
+
 **Keep only `default` and `seven6moa` (2026-10-19, on request).** Hermes cannot delete
 `default`; every other profile and MoA preset can go. List first, then delete by name.
 Profile deletion removes the profile directory and its gateway service and cannot be

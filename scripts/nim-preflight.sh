@@ -320,6 +320,50 @@ case "$CODE" in
         warn "reasoning-knob probe: HTTP $CODE" ;;
 esac
 
+# --------------------------------- reasoning on + force_nonempty_content ------
+#
+# NVIDIA's Super VL cookbook: when tool calling with reasoning enabled, pass
+# `force_nonempty_content: true` in chat_template_kwargs. config.yaml carries that
+# as a commented `extra_body` under providers.nvidia-nim. This probe is the gate
+# for uncommenting it: `ok` means the hosted endpoint accepted the field AND the
+# reply carried tool_calls. A 400/422 means leave the line commented, because the
+# same field would then fail every turn.
+hdr "reasoning on + force_nonempty_content (gate for the extra_body line)"
+
+cat > "$TMP/fne.json" <<JSON
+{"model":"$NIM_MODEL",
+ "messages":[{"role":"user","content":"What is the weather in Santa Fe? Use the tool."}],
+ "max_tokens":2048,
+ "chat_template_kwargs":{"enable_thinking":true,"force_nonempty_content":true},
+ "tools":[{"type":"function","function":{
+   "name":"get_weather",
+   "description":"Get current weather for a city",
+   "parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],
+ "tool_choice":"auto",
+ "stream":false}
+JSON
+
+CODE=$(curl -sS -o "$TMP/fneres.json" -w '%{http_code}' --max-time 180 \
+    -H "Authorization: Bearer $NVIDIA_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d @"$TMP/fne.json" \
+    "$NIM_BASE/chat/completions" 2>/dev/null) || CODE="000"
+
+case "$CODE" in
+    200)
+        if grep -q '"tool_calls"' "$TMP/fneres.json" 2>/dev/null; then
+            ok "force_nonempty_content accepted and tool_calls returned: safe to uncomment extra_body in config.yaml"
+        else
+            warn "force_nonempty_content accepted (200) but no tool_calls came back. Re-run once; if it repeats, leave the extra_body line commented."
+        fi ;;
+    400|422)
+        warn "force_nonempty_content REJECTED (HTTP $CODE). Leave the extra_body line commented in config.yaml." ;;
+    429)
+        warn "force_nonempty_content probe: 429, rate limited, not a capability result" ;;
+    *)
+        warn "force_nonempty_content probe: HTTP $CODE" ;;
+esac
+
 # ------------------------------------------------------------- other buckets --
 #
 # The PARENT, subagents, MoA reference and vision all run on NIM now (primary

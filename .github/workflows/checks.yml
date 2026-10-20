@@ -556,6 +556,28 @@ jobs:
           set -euo pipefail
           python3 scripts/check-capabilities.py
 
+      # gateway-doctor.js is only a check if it can fail. This builds one home that
+      # must pass and two that must fail (a sticky named profile; the 43-byte text a
+      # Windows git checkout leaves where a symlink was) and asserts all three exit
+      # codes. Drop either detector and the matching case turns this step red.
+      - name: Gateway doctor passes a clean home and fails both known faults
+        shell: bash
+        run: |
+          set -euo pipefail
+          T="$(mktemp -d)"
+          mkdir -p "$T/good/plugins/p/desktop" "$T/sticky" "$T/stub/plugins/p/desktop"
+          echo default > "$T/good/active_profile"
+          printf 'export default {}\n' > "$T/good/plugins/p/desktop/plugin.js"
+          echo seven6moa > "$T/sticky/active_profile"
+          printf '../pkg/desktop/plugin.js' > "$T/stub/plugins/p/desktop/plugin.js"
+          node scripts/gateway-doctor.js --home "$T/good" --no-cli
+          for bad in sticky stub; do
+            if node scripts/gateway-doctor.js --home "$T/$bad" --no-cli; then
+              echo "gateway-doctor passed the '$bad' fixture, which must fail"; exit 1
+            fi
+          done
+          echo "gateway-doctor: OK"
+
       # A doc reference that points at a file which does not exist is the same class
       # of silent failure as a hook pointing at a missing script: nothing errors, the
       # reader just follows a dead pointer. One shipped in this PR before this gate

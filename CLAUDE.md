@@ -107,6 +107,7 @@ python3 scripts/check-capabilities.py             # registry vs disk
 node   scripts/port-skills-to-hermes.js           # re-port; prints `scrub: clean`
 node   scripts/port-skills-to-hermes.js --check   # upstream drift, writes nothing
 bash   scripts/repo-doctor.sh                     # toolchain, hooks, egress
+node   scripts/gateway-doctor.js                 # sticky profile (exit 78), plugin symlink stubs
 pwsh -File scripts/hermes-verify.ps1              # the acceptance gate, on the box
 ```
 
