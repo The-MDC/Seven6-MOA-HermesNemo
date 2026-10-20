@@ -114,23 +114,15 @@ download, and it backs every slot below including `approval`.
 This one model already unblocks five of the eight auxiliary slots — routing,
 classification, tool selection, titles, curation.
 
-### 2.2 — Local 49B (offline fallback)
+### 2.2 — The 49B is no longer part of this build
 
-```powershell
-ollama pull hf.co/unsloth/Llama-3_3-Nemotron-Super-49B-v1_5-GGUF:UD-Q8_K_XL
-```
-
-Split GGUF, 2 files, ~58.68 GB combined -- an order of magnitude past the
-support model above. It was the parent from 2026-09-28 to 2026-10-19 and, until
-the same day, the MoA aggregator; it is now `fallback_providers` link 2 only
-(offline, full strength).
-Confirm real disk space and VRAM/RAM headroom before pulling -- this is
-not a "fast path" download in the way the 3.4 GB support model is.
-**Success:** `ollama list` shows the full tag above.
+The local 49B GGUF (~58.68 GB) was the parent from 2026-09-28 to 2026-10-19 and
+fallback 2 after that. It was removed on 2026-10-19: the target machine has 8 GB of
+RAM, and no hosted endpoint serves that model. Fallback 2 is now
+`nvidia/nemotron-3.5-lightning-30b-a3b` on NVIDIA NIM (§3), which needs no download.
 
 If you only want Hermes conversing, you can stop after 2.1 and §3: the parent is
-on NIM. Skipping this model costs the offline tiers only, and
-§4's verification will report the 49B as missing.
+on NIM.
 
 ## 3. Cloud tiers
 
@@ -218,7 +210,8 @@ completion alone cannot tell a wrong model id from an exhausted quota, and those
 need opposite fixes.
 
 **This is the step that answers the one thing CI structurally cannot:** whether
-Ollama actually has the 49B GGUF loaded and serving (§2.2), and
+Ollama actually has the floor model loaded and serving (§2.1), whether
+`nvidia/nemotron-3.5-lightning-30b-a3b` is callable with your NVIDIA key, and
 whether `qwen/qwen3.5-122b-a10b` is actually on OpenRouter. Neither is
 verifiable from the build container.
 
@@ -245,14 +238,13 @@ vision      nvidia-nim    nemotron-3.5-super-vl-120b-a12b      pinned; it is a V
 moa ref     nvidia-nim    nemotron-3.5-super-vl-120b-a12b
 aggregator  nvidia-nim    nemotron-3-ultra-550b-a55b       API only, text-only, the acting model on MoA turns
 fallback 1  or-fallback   Qwen3.5-122B-A10B      API only, also 2 heavy aux slots
-fallback 2  local         Llama-3.3-Nemotron-Super-49B-v1.5, UD-Q8_K_XL   Ollama, §2.2; offline, full strength
+fallback 2  nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     API only; same bucket as the parent (model-level failover, not a 429 escape)
 fallback 3  local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0
                           last resort + 5 light aux slots
 unrouted    anthropic-direct  claude-sonnet-5    configured, intact, via /model only
 ```
 
-The total download is now the 3.4 GB floor model, plus the ~58.68 GB 49B only if you
-want the offline tier.
+The total download is the 3.4 GB floor model.
 
 Not covered here, deliberately: the seven MCP servers, `hermes-council`'s
 dependency fault, and the Codex bridge handshake. None of them gate the model

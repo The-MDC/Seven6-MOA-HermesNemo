@@ -306,19 +306,36 @@ jobs:
                           f"{cfg.get('model')!r}, not the parent's {parent_default!r}"
               assert cfg.get("model"), f"auxiliary.{task} names a provider but no model"
 
-          # A fallback can only answer a failure of the parent if it does not share
-          # the parent's endpoint. With the parent on a cloud bucket this is the
-          # check that matters: a 429 on nvidia-nim cannot be answered from
-          # nvidia-nim, and the old chain led with exactly that.
+          # A fallback can only answer a 429 on the parent if it does not share the
+          # parent's endpoint. With the parent on a cloud bucket this is the check
+          # that matters: a 429 on nvidia-nim cannot be answered from nvidia-nim, and
+          # the old chain led with exactly that. So the FIRST link must be off the
+          # parent's endpoint.
+          #
+          # One sanctioned shape for a LATER link: back on the parent's endpoint, on a
+          # DIFFERENT model that the provider lists (nvidia/nemotron-3.5-lightning-30b-a3b on NIM,
+          # 2026-10-19, on request). It spends the same bucket, so it cannot answer a
+          # 429; it can answer a failure of the parent MODEL (retired id, a 5xx).
+          # Listed-under-models is required for the same reason as the aggregator:
+          # discover_models:false turns an unlisted id into a silent fallback to the
+          # main model, not an error.
           parent_name = parent_provider.split(":", 1)[1] if parent_provider.startswith("custom:") else parent_provider
           parent_host = urlparse(providers[parent_name]["api"]).netloc if parent_name in providers else None
+          parent_listed = set(providers[parent_name].get("models") or []) if parent_name in providers else set()
           fallbacks = d.get("fallback_providers") or []
           assert fallbacks, "fallback_providers: is empty — a 429 on the parent would stop the session"
           for i, fb in enumerate(fallbacks):
               fb_host = urlparse(fb.get("base_url", "")).netloc
-              assert not (parent_host and fb_host == parent_host), \
-                  f"fallback_providers[{i}] ({fb.get('model')}) is on the parent's endpoint " \
-                  f"({parent_host}) — it shares the bucket that just failed"
+              if parent_host and fb_host == parent_host:
+                  assert i > 0, \
+                      f"fallback_providers[0] ({fb.get('model')}) is on the parent's endpoint " \
+                      f"({parent_host}) — the first link is the 429 escape and must sit on a different bucket"
+                  assert fb.get("model") != d["model"]["default"], \
+                      f"fallback_providers[{i}] is the parent's own model on the parent's endpoint — " \
+                      f"it can answer nothing the parent could not"
+                  assert fb.get("model") in parent_listed, \
+                      f"fallback_providers[{i}] ({fb.get('model')}) is on the parent's endpoint but is not " \
+                      f"listed under providers.{parent_name}.models — an unlisted id resolves silently to the main model"
 
           # Every provider REFERENCE must resolve to something that can actually
           # serve. The exclusion check above compares excluded_providers against the

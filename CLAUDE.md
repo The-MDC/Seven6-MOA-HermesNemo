@@ -26,7 +26,7 @@ vision      custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b   pinned
 moa ref     custom:nvidia-nim    nvidia/nemotron-3.5-super-vl-120b-a12b
 aggregator  custom:nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b        the one deliberate exception (2026-10-19), text-only
 fallback 1  custom:or-fallback   qwen/qwen3.5-122b-a10b              429 escape + 2 heavy aux (compression, web_extract)
-fallback 2  custom:local         Llama-3.3-Nemotron-Super-49B-v1.5, UD-Q8_K_XL (Ollama)  offline, full strength
+fallback 2  custom:nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b               model-level failover (2026-10-19); same bucket as the parent, so it cannot answer a 429
 fallback 3  custom:local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0 (Ollama)   last resort + 5 light aux slots
 unrouted    custom:anthropic-direct  claude-sonnet-5                 configured, intact, reachable only via /model
 ```
@@ -60,8 +60,10 @@ asked for, because a forum report says the hosted endpoint once did not.
 **One bucket now.** Parent, subagents, MoA reference and vision share one ~40 RPM
 NIM key. The CI block enforces the replacement rule: a slot may share the parent's
 provider only on the parent's exact model, only `vision` among the auxiliaries may,
-and every `fallback_providers` link must sit on a different endpoint from the
-parent, because a 429 on NIM cannot be answered from NIM.
+and the FIRST `fallback_providers` link must sit on a different endpoint from the
+parent, because a 429 on NIM cannot be answered from NIM. The one named later link back on NIM
+is `nvidia/nemotron-3.5-lightning-30b-a3b`; CI requires it to be non-first, to differ from the parent's model
+and to be listed under `providers.nvidia-nim.models`.
 
 `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` is in the NIM picker and routed
 nowhere. A retired NIM id answers HTTP 410, not a config error, so run

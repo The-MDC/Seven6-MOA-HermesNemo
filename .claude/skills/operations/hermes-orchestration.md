@@ -20,7 +20,8 @@ nothing complained.
 | subagents, vision, MoA reference | `custom:nvidia-nim` | the same model, the same bucket |
 | MoA aggregator | `custom:nvidia-nim` | `nvidia/nemotron-3-ultra-550b-a55b` (text-only), the one deliberate exception; it is the acting model on a MoA turn |
 | 429 fallback + heavy aux | `custom:or-fallback` | fallback 1; `compression`, `web_extract` |
-| offline fallback | `custom:local` | fallback 2 (49B GGUF), fallback 3 + 5 light auxiliary slots (3B) |
+| model-level fallback | `custom:nvidia-nim` | fallback 2: `nvidia/nemotron-3.5-lightning-30b-a3b` (same bucket as the parent; answers a model failure, not a 429) |
+| offline fallback | `custom:local` | fallback 3 + 5 light auxiliary slots (3B) |
 | unrouted | `custom:anthropic-direct` | configured, reachable only via `/model` |
 
 `vision` routes to the primary on `custom:nvidia-nim` (a vision-language model), and
