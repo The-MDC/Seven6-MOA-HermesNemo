@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Download the Q8+ GGUF files for the three local llama.cpp servers
+# Download the GGUF files for the local llama.cpp servers
 # (configs/hermes/config.yaml -> providers.llamacpp-supervl-q8, llamacpp-ultra-q8,
-# llamacpp-glm-q8).
+# llamacpp-glm-q8 and the opt-in llamacpp-glm-abl-q5).
 #
 # Run this on the BIG box that will serve the models, not on the 8 GB laptop.
 #
@@ -88,6 +88,15 @@ FILES_glm=(
   "Q8_0/GLM-5.3-Flash-Q8_0-00008-of-00008.gguf|41987123840|a6cb6887c0047653f08c0ab6e564972451d9511322202970f7052e36052aefd6"
   "mmproj-F16.gguf|1128047296|922b809664d6a89cc1e40bfeaa63618000edc6651baf4082ce0718a784adf947"
 )
+FILES_glmabl=(
+  "UD-Q5_K_XL/GLM-5.3-Flash-UD-Q5_K_XL-00001-of-00006.gguf|9430112|6b6965cc54073ccb442f0f83a36482b1c9343ac035a91cbc58a034f264d56683"
+  "UD-Q5_K_XL/GLM-5.3-Flash-UD-Q5_K_XL-00002-of-00006.gguf|48806959456|332c4a9b0313e39644d9323747c6cffb152139cd14124627c923c63adacb763d"
+  "UD-Q5_K_XL/GLM-5.3-Flash-UD-Q5_K_XL-00003-of-00006.gguf|48557435840|f14b88c3e8557ab7b76aa0544fc19b5969e4e7c01b35c7404ee3aa7b61cb1df4"
+  "UD-Q5_K_XL/GLM-5.3-Flash-UD-Q5_K_XL-00004-of-00006.gguf|49317045248|497817f7e6ee0e6078377bb0c68bf0d3e9b26ca2510e206f7a0f870fc6ed7909"
+  "UD-Q5_K_XL/GLM-5.3-Flash-UD-Q5_K_XL-00005-of-00006.gguf|49317045248|68bfd1277fb8408135a4b78c4101ee436d09617cd35d3b8c681fb588c32083fc"
+  "UD-Q5_K_XL/GLM-5.3-Flash-UD-Q5_K_XL-00006-of-00006.gguf|44298171872|ea8e14184fedf58deb7bfb76dfe16b857e89b4fd0dfe71aa9cdae8ac3d16b0f0"
+  "mmproj-model-bf16.gguf|1164010176|82b7adb44411dbb298b1c689567804e5ed0790d80f308ed8b5b6b8ac0527d2ac"
+)
 
 usage() { sed -n '2,/^set -euo/p' "$0" | sed '$d'; }
 
@@ -97,12 +106,12 @@ for a in "$@"; do
   case "$a" in
     --check) CHECK_ONLY=1 ;;
     -h|--help) usage; exit 0 ;;
-    supervl|ultra|glm) TARGETS+=("$a") ;;
+    supervl|ultra|glm|glmabl) TARGETS+=("$a") ;;
     all) TARGETS+=(supervl ultra glm) ;;
-    *) echo "unknown argument: $a (supervl, ultra, glm, all, --check)" >&2; exit 2 ;;
+    *) echo "unknown argument: $a (supervl, ultra, glm, glmabl, all, --check)" >&2; exit 2 ;;
   esac
 done
-[ "${#TARGETS[@]}" -gt 0 ] || { echo "name a model: supervl, ultra, glm or all (try --help)" >&2; exit 2; }
+[ "${#TARGETS[@]}" -gt 0 ] || { echo "name a model: supervl, ultra, glm, glmabl or all (try --help)" >&2; exit 2; }
 
 for tool in curl sha256sum stat df; do
   command -v "$tool" >/dev/null 2>&1 || { echo "FAIL  $tool is not installed" >&2; exit 2; }
@@ -190,4 +199,4 @@ if [ "$bad" -ne 0 ]; then
   exit 1
 fi
 echo "OK      $checked file(s) verified under $DIR"
-echo "next:   bash scripts/q8-local-serve.sh <supervl|ultra|glm>"
+echo "next:   bash scripts/q8-local-serve.sh <supervl|ultra|glm|glmabl>"
