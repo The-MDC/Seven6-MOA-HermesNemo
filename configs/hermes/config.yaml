@@ -59,6 +59,8 @@
 #   opt-in refs llama.cpp      nemotron-3-ultra-550b-a55b-q8 (UD-Q8_K_XL) and glm-5.3-flash-q8 (Q8_0),
 #                              tunnels 8083 and 8084: the moa.presets.local-q8 preset only; the
 #                              default preset keeps the hosted copies
+#   coder       llama.cpp      glm-5.3-flash-q5 (Unsloth stock GLM-5.3-Flash, UD-Q5_K_XL), tunnel 8086:
+#                              the chosen coding model; reachable by /model, in no preset, fallback or tier
 #   opt-in slot llama.cpp      glm-5.3-flash-abliterated-q5 (huihui-ai GGUF, UD-Q5_K_XL), tunnel 8085:
 #                              reachable only by /model; in no preset, no fallback, no tier
 #   floor       your laptop    Hermes-3-Llama-3.2-3B-abliterated:Q8_0 (Ollama)
@@ -492,6 +494,34 @@ providers:
     # The model's own window is 1,048,576; this is what the serve script asks for.
     context_length: 131072
 
+  llamacpp-glm-q5:
+    name: "llama.cpp (GLM-5.3-Flash stock, UD-Q5_K_XL, over an SSH tunnel) -- the CODER"
+    # THE CODER CHOICE (2026-10-21, on request): Unsloth's stock GLM-5.3-Flash at UD-Q5_K_XL is
+    # the model to switch to for coding work. Reached by
+    # `/model custom:llamacpp-glm-q5:glm-5.3-flash-q5`. It is in NO preset, NO fallback chain
+    # and NO tier, and CI keeps it that way: it is a local server on a box you control, so a
+    # tier that depended on it would break on the 8 GB laptop whenever the tunnel is down.
+    #     ssh -N -L 8086:127.0.0.1:8086 <user>@<big-box>
+    # Run on the big box: scripts/q8-local-fetch.sh glmq5, then scripts/q8-local-serve.sh glmq5.
+    #
+    # WHAT IT IS: unsloth/GLM-5.3-Flash-GGUF at a38483c8cd5d (the same pinned commit as
+    # llamacpp-glm-q8), UD-Q5_K_XL in 6 shards (240.3 GB) plus mmproj-F16.gguf (1.13 GB).
+    # Unsloth's own measurement for this quant is 94.35% top-1 token agreement with BF16 and a
+    # mean KLD of 0.027; that is fidelity to BF16, NOT a coding benchmark. The only same-harness
+    # coding figure this repo has is the Vals AI SWE-bench Verified board for GLM-5.3-Flash
+    # (bash-only mini-SWE-agent harness; archived, saturated, so it ranks models and does not
+    # predict your repository). Not run by the author. Needs a llama.cpp build with the
+    # GLM-5.3-Flash architecture, the same as llamacpp-glm-q8.
+    api: http://127.0.0.1:8086/v1
+    api_key: "no-key-required"
+    transport: chat_completions
+    default_model: glm-5.3-flash-q5
+    models:
+      - glm-5.3-flash-q5
+    discover_models: false
+    # The model's own window is 1,048,576; this is what the serve script asks for.
+    context_length: 131072
+
   anthropic-direct:
     name: "Anthropic (OpenAI-compatible endpoint)"
     #
@@ -835,6 +865,7 @@ web:
 #   /model custom:llamacpp-qwen:qwen3.8-27b-q8                                                (fallback 4; needs the tunnel on 8081)
 #   /model custom:llamacpp-ultra-q8:nemotron-3-ultra-550b-a55b-q8                             (opt-in MoA reference; tunnel on 8083)
 #   /model custom:llamacpp-glm-q8:glm-5.3-flash-q8                                            (opt-in MoA reference; tunnel on 8084)
+#   /model custom:llamacpp-glm-q5:glm-5.3-flash-q5                                            (THE CODER; tunnel on 8086)
 #   /model custom:llamacpp-glm-abl-q5:glm-5.3-flash-abliterated-q5                            (opt-in slot, /model only; tunnel on 8085)
 #   /model custom:or-fallback:qwen/qwen3.8-27b                                                (heavy aux, hosted copy)
 #   /model custom:or-fallback:z-ai/glm-5.3-flash                                              (MoA reference 1, fallback 1)

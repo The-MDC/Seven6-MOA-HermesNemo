@@ -15,6 +15,7 @@
 #   bash scripts/q8-local-serve.sh ultra                 Nemotron 3 Ultra 550B, UD-Q8_K_XL, text only
 #   bash scripts/q8-local-serve.sh glm                   GLM-5.3-Flash, Q8_0, vision (needs the fork build)
 #   bash scripts/q8-local-serve.sh glmabl                GLM-5.3-Flash abliterated, UD-Q5_K_XL, vision; OPT-IN, port 8085
+#   bash scripts/q8-local-serve.sh glmq5                 GLM-5.3-Flash stock, UD-Q5_K_XL, vision; the CODER, port 8086
 #   bash scripts/q8-local-serve.sh supervl --spec mtp    add the MTP head (supervl only; see below)
 #   bash scripts/q8-local-serve.sh <model> --dry-run     print the command, start nothing
 #   bash scripts/q8-local-serve.sh <model> --print       print alias / context / port, nothing else
@@ -60,7 +61,7 @@ PREFLIGHT=1
 EXTRA=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    supervl|ultra|glm|glmabl) MODEL_KEY="$1"; shift ;;
+    supervl|ultra|glm|glmabl|glmq5) MODEL_KEY="$1"; shift ;;
     --spec)
       [ $# -ge 2 ] || { echo "--spec needs mtp or none" >&2; exit 2; }
       SPEC="$2"; shift 2 ;;
@@ -69,10 +70,10 @@ while [ $# -gt 0 ]; do
     --no-preflight) PREFLIGHT=0; shift ;;
     -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d'; exit 0 ;;
     --) shift; EXTRA=("$@"); break ;;
-    *) echo "unknown argument: $1 (supervl, ultra, glm, glmabl, --spec, --dry-run, --print, --no-preflight, -- ...)" >&2; exit 2 ;;
+    *) echo "unknown argument: $1 (supervl, ultra, glm, glmabl, glmq5, --spec, --dry-run, --print, --no-preflight, -- ...)" >&2; exit 2 ;;
   esac
 done
-[ -n "$MODEL_KEY" ] || { echo "name a model: supervl, ultra, glm or glmabl (try --help)" >&2; exit 2; }
+[ -n "$MODEL_KEY" ] || { echo "name a model: supervl, ultra, glm, glmabl or glmq5 (try --help)" >&2; exit 2; }
 
 case "$SPEC" in mtp|none) ;; *) echo "FAIL  --spec must be mtp or none, not '$SPEC'" >&2; exit 2 ;; esac
 if [ "$SPEC" = "mtp" ] && [ "$MODEL_KEY" != "supervl" ]; then
@@ -107,6 +108,11 @@ case "$MODEL_KEY" in
     MODEL="$DIR/GLM-5.3-Flash-Q8_0-00001-of-00008.gguf"
     MMPROJ="$DIR/mmproj-F16.gguf"
     SHARDS=8 ;;
+  glmq5)
+    ALIAS_DEFAULT="glm-5.3-flash-q5"; CTX_DEFAULT=131072; PORT_DEFAULT=8086
+    MODEL="$DIR/GLM-5.3-Flash-UD-Q5_K_XL-00001-of-00006.gguf"
+    MMPROJ="$DIR/mmproj-F16.gguf"
+    SHARDS=6 ;;
   glmabl)
     ALIAS_DEFAULT="glm-5.3-flash-abliterated-q5"; CTX_DEFAULT=131072; PORT_DEFAULT=8085
     MODEL="$DIR/GLM-5.3-Flash-UD-Q5_K_XL-00001-of-00006.gguf"
@@ -175,7 +181,7 @@ if [ "$PREFLIGHT" -eq 1 ] && [ "$DRY" -eq 0 ]; then
     grep -q -- '--spec-type' <<<"$help_text" && grep -q -- 'draft-mtp' <<<"$help_text" || {
       echo "FAIL  this llama-server does not list '--spec-type draft-mtp' - update llama.cpp, or run without --spec mtp" >&2; exit 2; }
   fi
-  if [ "$MODEL_KEY" = "glm" ] || [ "$MODEL_KEY" = "glmabl" ]; then
+  if [ "$MODEL_KEY" = "glm" ] || [ "$MODEL_KEY" = "glmabl" ] || [ "$MODEL_KEY" = "glmq5" ]; then
     echo "note  glm needs a llama.cpp build with the GLM-5.3-Flash architecture (Unsloth's glm5next/upstream branch); this check cannot see that" >&2
   fi
 fi

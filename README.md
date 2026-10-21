@@ -34,6 +34,7 @@ request.
 | fallback 6 / floor | `custom:local` | `hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0` (Ollama) | last resort, plus 5 light auxiliary slots (title, approval, mcp, skills_hub, curator) |
 | opt-in MoA reference | `custom:llamacpp-ultra-q8` | `nemotron-3-ultra-550b-a55b-q8` | Ultra at UD-Q8_K_XL (594.5 GB, text only) over a tunnel on `127.0.0.1:8083`. Used only by `moa.presets.local-q8`; takes Ultra's request off the NIM bucket (2 extra NIM requests per MoA turn instead of 3) |
 | opt-in MoA reference | `custom:llamacpp-glm-q8` | `glm-5.3-flash-q8` | GLM-5.3-Flash at Q8_0 (342.1 GB) over a tunnel on `127.0.0.1:8084`. Used only by `moa.presets.local-q8`; needs a llama.cpp build with the GLM-5.3-Flash architecture |
+| coder | `custom:llamacpp-glm-q5` | `glm-5.3-flash-q5` | Unsloth's stock GLM-5.3-Flash at UD-Q5_K_XL (241.5 GB: 6 shards + F16 projector), the chosen coding model, over a tunnel on `127.0.0.1:8086`. Reached with `/model custom:llamacpp-glm-q5:glm-5.3-flash-q5`; in no preset, fallback or tier, so the laptop never depends on the tunnel. Unsloth measures 94.35% top-1 agreement with BF16 for this quant (fidelity, not a coding score). Fetch by name: `q8-local-fetch.sh glmq5` |
 | opt-in model switch | `custom:llamacpp-glm-abl-q5` | `glm-5.3-flash-abliterated-q5` | huihui-ai's abliterated GLM-5.3-Flash at UD-Q5_K_XL (241.5 GB, 6 shards + BF16 projector) over a tunnel on `127.0.0.1:8085`. In no preset, fallback or tier: reachable only with `/model custom:llamacpp-glm-abl-q5:glm-5.3-flash-abliterated-q5`. Abliteration removes refusals and no quality measurement exists for this build; fetch it by name (`q8-local-fetch.sh glmabl`), `all` skips it |
 | heavy aux | `custom:or-fallback` | `qwen/qwen3.8-27b` | compression, web_extract (the hosted copy of the same model; 1M context, $0.04 / $1.35 per MTok) |
 | unrouted | `custom:anthropic-direct` | `claude-sonnet-5` | reachable only via `/model` |
@@ -154,6 +155,7 @@ Super VL.
 | `supervl` | Q8_0 (no Q8_K_XL exists for this model), from `ggml-org` | 133.7 GB, 3 files | 8082 | fallback 3 |
 | `ultra` | UD-Q8_K_XL, from `unsloth` (plain Q8_0 is 584.3 GB) | 594.5 GB, 14 shards | 8083 | reference in `moa.presets.local-q8` |
 | `glm` | Q8_0 + F16 projector, from `unsloth` | 342.1 GB, 8 shards + 1 | 8084 | reference in `moa.presets.local-q8` |
+| `glmq5` | stock UD-Q5_K_XL + F16 projector, from `unsloth` (fetched by name only) | 241.5 GB, 6 shards + 1 | 8086 | the coder, `/model` switch only |
 | `glmabl` | abliterated UD-Q5_K_XL + BF16 projector, from `huihui-ai` (fetched by name only) | 241.5 GB, 6 shards + 1 | 8085 | `/model` switch only |
 
 All three together are about 1,070 GB of files, so they need a rented multi-GPU server, not a
