@@ -30,8 +30,17 @@ param(
 
     # Also make one live request per remote provider. Costs a few tokens and
     # proves the key works, which no local check can.
-    [switch]$Deep
+    [switch]$Deep,
+
+    # Profiles whose config.yaml must follow the repo copy: drift in one is a FAILURE.
+    # Every other profile is checked too, but its drift is only a warning, because a
+    # profile such as `mylocal` may differ on purpose. A key a profile does not set is
+    # never drift -- it inherits. Pass @() to make every profile advisory.
+    [string[]]$StrictProfiles = @('seven6moa')
 )
+
+. (Join-Path $PSScriptRoot 'hermes-common.ps1')
+$StrictProfiles = @(Split-NameList $StrictProfiles)   # -File delivers "a,b" as one string
 
 $ErrorActionPreference = 'Continue'
 $script:Fail = 0
@@ -131,6 +140,57 @@ if (-not (Test-Path $EnvPath)) {
         Ok 'ANTHROPIC_API_KEY is set (anthropic-direct - unwired, available via /model)'
     } else {
         Info 'ANTHROPIC_API_KEY not set - anthropic-direct unusable, nothing else affected'
+    }
+}
+
+# ---------------------------------------------------------------- drift
+# CI checks the repo copy; this checks the file Hermes reads. `hermes update` and
+# `hermes dashboard` migrate the config format on their own (v0 -> v51 did), a UI
+# model pick can land in a profile's config.yaml, and hermes-apply.ps1 writes the root
+# config only -- each leaves a file that parses, loads, and routes somewhere else.
+# The logic lives in scripts/check-config-drift.py, which has its own tests.
+Section 'config drift (installed vs repo copy)'
+
+$RepoRoot  = Split-Path $PSScriptRoot -Parent
+$Golden    = Join-Path $RepoRoot 'configs/hermes/config.yaml'
+$DriftTool = Join-Path $PSScriptRoot 'check-config-drift.py'
+
+function Show-Drift($r) {
+    foreach ($line in ($r.Output -split "`r?`n")) {
+        if (-not $line.Trim()) { continue }
+        if     ($line -match '^\s+FAIL') { Write-Host $line -ForegroundColor Red }
+        elseif ($line -match '^\s+warn') { Write-Host $line -ForegroundColor Yellow; $script:Warn++ }
+        elseif ($line -match '^\s+ok')   { Write-Host $line -ForegroundColor Green }
+        else                             { Write-Host $line -ForegroundColor DarkGray }
+    }
+}
+
+if (-not (Test-Path $Golden))    { Fail "repo copy missing: $Golden - run this from a full checkout" }
+elseif (-not (Test-Path $DriftTool)) { Fail "drift tool missing: $DriftTool" }
+elseif (-not (Test-Path $ConfigPath)) { Info 'no installed config to compare (already reported above)' }
+else {
+    $py = Find-YamlPython
+    if (-not $py) {
+        # A warning, not silence: "did not run" must never read as "passed".
+        Warn 'config drift NOT checked - no Python with PyYAML found. Set HERMES_DRIFT_PYTHON to one, or run: py -3 -m pip install pyyaml'
+    } else {
+        $r = Invoke-DriftCheck -Python $py -Tool $DriftTool -Golden $Golden -Installed $ConfigPath -Label 'root config'
+        Show-Drift $r
+        if ($r.Code -eq 1) { Fail 'root config drifted from the repo copy - see above. Restore with hermes-apply.ps1 (it backs up first), or fold the change into configs/hermes/config.yaml' }
+        elseif ($r.Code -ne 0) { Fail 'root config could not be read or parsed - drift is unknown' }
+
+        $profileRoot = Join-Path $HermesHome 'profiles'
+        $dirs = @(Get-ChildItem $profileRoot -Directory -ErrorAction SilentlyContinue | Sort-Object Name)
+        if (-not $dirs) { Info "no profiles under $profileRoot" }
+        foreach ($d in $dirs) {
+            $pc = Join-Path $d.FullName 'config.yaml'
+            if (-not (Test-Path $pc)) { Info "profile '$($d.Name)': no config.yaml (inherits the root config)"; continue }
+            $strict = $StrictProfiles -contains $d.Name
+            $r = Invoke-DriftCheck -Python $py -Tool $DriftTool -Golden $Golden -Installed $pc -Label "profile '$($d.Name)'" -Profile -Strict:$strict
+            Show-Drift $r
+            if ($r.Code -eq 1) { Fail "profile '$($d.Name)' failed the routing check - see above" }
+            elseif ($r.Code -ne 0) { Fail "profile '$($d.Name)' config could not be read or parsed" }
+        }
     }
 }
 

@@ -122,7 +122,11 @@ and never by path:
 ```bash
 pwsh -File scripts/hermes-apply.ps1 -WhatIf   # show what installing would change
 pwsh -File scripts/hermes-apply.ps1           # install configs, with backups
-pwsh -File scripts/hermes-verify.ps1          # the acceptance gate
+pwsh -File scripts/hermes-verify.ps1          # the acceptance gate (includes config drift)
+pwsh -File scripts/hermes-apply.ps1 -Profiles NAME   # opt-in: also install into a named profile
+pwsh -File scripts/hermes-update-safe.ps1     # stop, back up, hermes update, drift check, restart
+pwsh -File scripts/hermes-dashboard-autostart.ps1    # pinned dashboard token + login task (Status by default)
+python3 scripts/check-config-drift.py --help  # compare an installed config to the repo copy
 pwsh -File scripts/hermes-report.ps1          # paste-safe install inventory
 bash   scripts/repo-doctor.sh                 # toolchain, hooks, egress
 python3 scripts/check-capabilities.py         # registry vs disk
