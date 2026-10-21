@@ -1059,3 +1059,11 @@ skills:
   creation_nudge_interval: 15
   # external_dirs:
   #   - ${HERMES_BUILD_REPO}/hermes-skills
+
+# Written by Hermes v0.22.2 on the box (config format v0 -> v51, 2026-10-21) and kept
+# here so hermes-apply.ps1 does not undo it. Without `_config_version` Hermes treats the
+# file as v0 and migrates it again on the next update; without `multiplex_profiles`
+# the one gateway stops serving the default, mylocal and seven6moa profiles.
+gateway:
+  multiplex_profiles: true
+_config_version: 51
