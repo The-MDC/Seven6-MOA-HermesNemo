@@ -60,9 +60,14 @@ What changed on 2026-10-20, on request: the MoA roster. Super VL is now the aggr
 (it keeps vision and tool calling, and each loop iteration is a 12B-active call). Ultra
 moved to a reference alongside GLM-5.3 Flash, Mixtral 8x22B instruct, Ising-Calibration
 1.5 31B and Nano Omni. GLM-5.3 Flash is also fallback 1. Cost: three NIM requests per
-user turn on a MoA turn, plus OpenRouter spend for Mixtral ($2 / $6 per MTok). Not
-measured: whether this key may call the Ising and Omni ids, the OpenRouter ids on this
-account, and Mixtral's 65,536 window against the provider-wide `context_length`.
+user turn on a MoA turn, plus OpenRouter spend for Mixtral ($2 / $6 per MTok). Measured
+2026-10-20 on the PC with the Hermes key: `nvidia/ising-calibration-1.5-31b` answers on
+NIM, HTTP 200, for text and for an image (read "NIM TEST" from a generated PNG; first
+image call was slow). It ignores brevity instructions and describes itself as a qubit
+calibration-plot reader built on Gemma 4, so treat it as a specialist adviser. Not
+measured: whether this key may call the Omni id, the OpenRouter ids on this account
+(GLM-5.3 Flash, Mixtral), and Mixtral's 65,536 window against the provider-wide
+`context_length`.
 The earlier open question below (swap the aggregator and reference roles) is resolved.
 
 What changed on 2026-10-19, and what it cost:
