@@ -44,7 +44,7 @@ hermes skills list          # confirm they registered
 
 ## What is here
 
-13 skills across 6 categories (`python3 scripts/check-capabilities.py` prints the live
+14 skills across 6 categories (`python3 scripts/check-capabilities.py` prints the live
 count), each laid out as Hermes expects: `<category>/<name>/SKILL.md` plus any
 supporting files copied verbatim.
 
@@ -55,7 +55,7 @@ supporting files copied verbatim.
 | research | `deep-research` |
 | media | `file-reading` · `pdf-reading` |
 | autonomous-ai-agents | `skill-creator` |
-| **operations** (hand-written) | `local-desktop` · `hermes-orchestration` |
+| **operations** (hand-written) | `local-desktop` · `hermes-orchestration` · `qwen-local` |
 
 On 2026-10-19 fifteen ported skills were removed because they do not help a
 Hermes + Codex orchestration build: blockchain (3), fundraising (2), creative (3),
