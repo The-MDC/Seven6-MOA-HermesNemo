@@ -58,7 +58,13 @@ if ($hermes) { Ok "hermes: $((& hermes --version 2>&1 | Select-Object -First 1))
 else { Fail 'hermes not on PATH - nothing below can be trusted' }
 
 $ollama = Get-Command ollama -ErrorAction SilentlyContinue
-if ($ollama) { Ok "ollama: $((& ollama --version 2>&1 | Select-Object -First 1))" }
+if ($ollama) {
+    $ov = (& ollama --version 2>&1 | Out-String).Trim()
+    # `ollama --version` exits 0 and prints a "could not connect" warning when the
+    # server is down. A client that is installed is not a server that is running.
+    if ($ov -match 'could not connect|Warning') { Warn "ollama client present, server not running: $(($ov -split "`n")[0])" }
+    else { Ok "ollama: $(($ov -split "`n")[0])" }
+}
 else { Fail 'ollama not on PATH - the local tier and 5 auxiliary slots have no backend' }
 
 $codex = Get-Command codex -ErrorAction SilentlyContinue
@@ -155,23 +161,30 @@ function Test-Port($hostname, $port, $timeoutMs = 2000) {
 Section 'local models (Ollama)'
 
 if ($ollama) {
-    $tags = (& ollama list 2>&1 | Out-String)
+    $port = Test-Port '127.0.0.1' 11434
+    if (-not $port) {
+        # Probe the port BEFORE `ollama list`: with the server down, `list` can hang
+        # or print an error, and either one hid every line below it.
+        Fail 'nothing listening on 127.0.0.1:11434 - run `ollama serve`; the local floor model and 5 light aux slots are unreachable'
+        $tags = ''
+    } else {
+        Ok 'Ollama answering on 127.0.0.1:11434'
+        $tags = (& ollama list 2>&1 | Out-String)
+    }
     # These names must match `providers.local.models` in the repo config exactly.
     # A tag mismatch is not a loud failure: Hermes resolves the miss by falling
     # back to the main model, so you get an answer from the wrong tier.
     #
     # Ollama carries the whole local tier; vision routes to the cloud, so there is no
     # second local server to check.
-    foreach ($m in @('hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0')) {
-        if ($tags -match [regex]::Escape($m)) { Ok "$m present" }
-        else {
-            Fail "$m NOT in Ollama - config.yaml names it, so selecting it silently falls back. Pull it with: ollama pull $m"
+    if ($port) {
+        foreach ($m in @('hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0')) {
+            if ($tags -match [regex]::Escape($m)) { Ok "$m present" }
+            else {
+                Fail "$m NOT in Ollama - config.yaml names it, so selecting it silently falls back. Pull it with: ollama pull $m"
+            }
         }
     }
-
-    $port = Test-Port '127.0.0.1' 11434
-    if ($port) { Ok 'Ollama answering on 127.0.0.1:11434' }
-    else { Fail 'nothing listening on 127.0.0.1:11434 - run `ollama serve`' }
 }
 
 # ---------------------------------------------------------------- MCP
