@@ -84,9 +84,13 @@ carry it and a required reason for any asymmetry.
 `scripts/check-capabilities.py` fails the build when the tree stops matching it.
 
 ```
-skills        95 declared    77 Claude Code    29 Hermes    11 both
-mcp servers   16 declared    10 Claude Code     8 Hermes     2 both
+skills        26 declared    21 Claude Code    13 Hermes     8 both
+mcp servers   10 declared     4 Claude Code     8 Hermes     2 both
 ```
+
+These numbers are a snapshot (2026-10-20). `python3 scripts/check-capabilities.py` is
+the source of truth. The registry was cut from 94 skills and 16 MCP servers to what
+the current build uses; the removed set is in git history at `3f1bc56`.
 
 **This is not a parity demand.** Hosted MCP servers are kept out of Hermes on
 purpose: every discovered tool is injected into the system prompt on *every* request,
