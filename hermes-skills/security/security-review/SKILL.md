@@ -119,7 +119,7 @@ async function verifyWalletOwnership(
 
 // NEVER trust an address claim without verifying the signature
 // NEVER skip replay attack protection — include nonce + timestamp in message
-const message = `Example App login\nNonce: ${nonce}\nTimestamp: ${Date.now()}`
+const message = `the platform login\nNonce: ${nonce}\nTimestamp: ${Date.now()}`
 ```
 
 Checklist:
