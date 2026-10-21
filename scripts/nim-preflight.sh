@@ -55,6 +55,8 @@ NIM_BASE="${NVIDIA_NIM_BASE_URL:-https://integrate.api.nvidia.com/v1}"
 # Override with NVIDIA_NIM_MODEL to probe another id (a retired id answers HTTP 410).
 NIM_MODEL="${NVIDIA_NIM_MODEL:-nvidia/nemotron-3.5-super-vl-120b-a12b}"
 OR_BASE="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}"
+HF_BASE="${HF_BASE_URL:-https://router.huggingface.co/v1}"
+HF_MODEL="${HF_MODEL:-nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4}"
 LOCAL_BASE="${LOCAL_MODEL_BASE_URL:-http://127.0.0.1:11434/v1}"
 SEARXNG="${SEARXNG_URL:-}"
 VOICEBOX="${VOICEBOX_BASE_URL:-http://127.0.0.1:17493}"
@@ -368,7 +370,7 @@ esac
 #
 # The PARENT, subagents, MoA reference and vision all run on NIM now (primary
 # model nemotron-3.5-super-vl-120b-a12b, 2026-10-19). What sits on OTHER buckets
-# is the failover: OpenRouter, then the local Ollama models.
+# is the failover: OpenRouter, Hugging Face, then the local Ollama models.
 #
 # Failover only helps if those providers actually answer, so check them here.
 #
@@ -399,6 +401,26 @@ if [ "$NIM_ONLY" = "0" ]; then
 
     if [ "$OR_BASE" = "$NIM_BASE" ]; then
         bad "the fallback bucket points at the NIM endpoint — a 429 on the primary would hit it too"
+    fi
+
+    # Fallback 2. NOT check_bucket: the HF router answers GET /models with HTTP 200 for
+    # no token and for a bogus one (checked 2026-10-21), so that probe cannot fail on a
+    # bad key. A one-token chat can: it answers 401 without a valid token.
+    hdr "fallback bucket — Hugging Face ($HF_BASE)"
+    if [ -z "${HF_TOKEN:-}" ]; then
+        warn "huggingface: no HF_TOKEN set — fallback 2 has nowhere to go"
+    else
+        HF_CODE=$(curl -sS -o "$TMP/hf.json" -w '%{http_code}' --max-time 90 \
+            -H "Authorization: Bearer $HF_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"model\":\"$HF_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":1}" \
+            "$HF_BASE/chat/completions" 2>/dev/null) || HF_CODE="000"
+        case "$HF_CODE" in
+            200)     ok "huggingface: the token authenticates and $HF_MODEL answered" ;;
+            401|403) bad "huggingface: $HF_CODE — token rejected or lacks the Inference Providers permission. Not a retry case." ;;
+            404)     bad "huggingface: 404 — the router does not know $HF_MODEL; list ids: curl -s $HF_BASE/models" ;;
+            000)     bad "huggingface: no response (network, DNS, or proxy)" ;;
+            *)       warn "huggingface: HTTP $HF_CODE" ;;
+        esac
     fi
 
     # ---------------------------------------------------------- local floor --

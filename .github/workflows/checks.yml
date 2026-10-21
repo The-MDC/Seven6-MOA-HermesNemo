@@ -115,7 +115,7 @@ jobs:
       # PowerShell glue -- launcher, autostart, update wrapper, profile apply, and the
       # drift section of hermes-verify -- against a fake `hermes` on PATH.
       #
-      # The local Qwen3.8-27B (fallback 2) has the same shape of risk: scripts that
+      # The local Qwen3.8-27B (fallback 3) has the same shape of risk: scripts that
       # pull 34 GB and start a CUDA server cannot run in CI, so test_qwen_local.py runs
       # them against a fake curl and a fake llama-server, and requires the serve
       # script's alias and window to equal providers.llamacpp-qwen in the config.

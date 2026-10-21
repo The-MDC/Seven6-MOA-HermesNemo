@@ -392,7 +392,7 @@ hermes --print "Reply with exactly: parent-ok"
 **ESCALATE** if it answers on a different model than that. This could mean a
 `discover_models` regression that unpinned the picker, `NVIDIA_API_KEY` absent
 or spent (the session falls through to `fallback_providers`: OpenRouter, then
-Nemotron 3.5 Lightning on NIM, then the local 3B), or the hosted endpoint answering under
+Hugging Face, the local Qwen over its tunnel, Nemotron 3.5 Lightning on NIM, then the local 3B), or the hosted endpoint answering under
 another model id than the one requested -- a forum report says it once did.
 `hermes-verify.ps1 -Deep` and `nim-preflight.sh` separate those: both print the
 id the endpoint *returned* alongside the one requested.

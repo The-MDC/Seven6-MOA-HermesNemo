@@ -127,7 +127,7 @@ if (-not (Test-Path $EnvPath)) {
     $envRaw = Get-Content $EnvPath -Raw
     # NVIDIA_API_KEY is the PRIMARY model's key (nemotron-3.5-super-vl-120b-a12b);
     # without it there is no primary and everything runs on failover.
-    foreach ($k in @('NVIDIA_API_KEY', 'OPENROUTER_API_KEY')) {
+    foreach ($k in @('NVIDIA_API_KEY', 'OPENROUTER_API_KEY', 'HF_TOKEN')) {
         # Presence only. The value is never read, printed, or length-checked.
         if ($envRaw -match "(?m)^\s*$k\s*=\s*\S") { Ok "$k is set" }
         else { Warn "$k not set - the tier that uses it will fail over" }
@@ -453,6 +453,9 @@ if ($Deep) {
 
     Probe-Configured 'nvidia-nim'  'NVIDIA_API_KEY'
     Probe-Configured 'or-fallback' 'OPENROUTER_API_KEY'
+    # Fallback 2. Its /models answers 200 for a bad token, so the one-token chat inside
+    # Probe is the only leg that can fail on a bad HF_TOKEN.
+    Probe-Configured 'hf-fallback' 'HF_TOKEN'
     # Present only if the key is set -- absence is fine (see the toolchain
     # section above), so this stays silent rather than warning about a tier
     # nothing depends on.
@@ -460,7 +463,7 @@ if ($Deep) {
         Probe-Configured 'anthropic-direct' 'ANTHROPIC_API_KEY' 'x-api-key' ''
     }
 
-    # Fallback 2: the llama.cpp server behind the SSH tunnel. No key, and ADVISORY on
+    # Fallback 3: the llama.cpp server behind the SSH tunnel. No key, and ADVISORY on
     # purpose: a closed tunnel is a normal state (the laptop was closed, the big box is
     # off), and a gate that fails on a normal state is a gate no install can pass. A
     # dead tunnel makes Hermes skip the link; it does not break the install. What IS a
@@ -475,7 +478,7 @@ if ($Deep) {
         Info "$name -> $model @ $url"
         $u = [Uri]$url
         if (-not (Test-Port $u.Host $u.Port)) {
-            Warn "nothing listening on $($u.Host):$($u.Port) - fallback 2 is skipped until the tunnel is open: ssh -N -L $($u.Port):127.0.0.1:8080 <user>@<big-box>"
+            Warn "nothing listening on $($u.Host):$($u.Port) - fallback 3 is skipped until the tunnel is open: ssh -N -L $($u.Port):127.0.0.1:8080 <user>@<big-box>"
             return
         }
         try {

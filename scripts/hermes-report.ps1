@@ -194,7 +194,7 @@ if (-not (Test-Path $envPath)) {
             Say ("    {0,-24} {1}" -f $n, $(if ($len) { "set, $len chars" } else { 'EMPTY' }))
         }
     }
-    foreach ($req in @('NVIDIA_API_KEY', 'OPENROUTER_API_KEY')) {
+    foreach ($req in @('NVIDIA_API_KEY', 'OPENROUTER_API_KEY', 'HF_TOKEN')) {
         if (-not $seen.ContainsKey($req)) {
             Say ("    {0,-24} MISSING - that tier will fail over silently" -f $req)
         }
