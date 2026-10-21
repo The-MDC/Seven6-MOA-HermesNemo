@@ -28,13 +28,13 @@ FETCH = SCRIPTS / "q8-local-fetch.sh"
 SERVE = SCRIPTS / "q8-local-serve.sh"
 
 MODELS = ("supervl", "ultra", "glm")      # what `fetch all` means
-OPT_IN = ("glmabl",)                       # fetched and served by name only; never part of `all`
+OPT_IN = ("glmabl", "glmq5")                       # fetched and served by name only; never part of `all`
 ALL_KEYS = MODELS + OPT_IN
 PROVIDER = {"supervl": "llamacpp-supervl-q8", "ultra": "llamacpp-ultra-q8", "glm": "llamacpp-glm-q8",
-            "glmabl": "llamacpp-glm-abl-q5"}
+            "glmabl": "llamacpp-glm-abl-q5", "glmq5": "llamacpp-glm-q5"}
 # sizes summed from the Hugging Face tree API, 2026-10-21
-TOTAL_BYTES = {"supervl": 133716911008, "ultra": 594513314336, "glm": 342110013504, "glmabl": 241470097952}
-FILE_COUNT = {"supervl": 3, "ultra": 14, "glm": 9, "glmabl": 7}
+TOTAL_BYTES = {"supervl": 133716911008, "ultra": 594513314336, "glm": 342110013504, "glmabl": 241470097952, "glmq5": 241434134304}
+FILE_COUNT = {"supervl": 3, "ultra": 14, "glm": 9, "glmabl": 7, "glmq5": 7}
 
 
 def run(cmd, env=None, cwd=None):
@@ -131,6 +131,17 @@ class FetchTests(unittest.TestCase):
         self.assertEqual(repo, "huihui-ai/Huihui-GLM-5.3-Flash-abliterated-GGUF")
         self.assertIn(f"huggingface.co/{repo}/", self.log.read_text())
         self.assertTrue((self.base / "glmabl" / "a.gguf").is_file())
+
+    def test_the_coder_is_fetched_by_name_from_unsloth_at_the_same_pinned_commit_as_glm(self):
+        code, out, err = run([FETCH, "glmq5"], self.env())
+        self.assertEqual(code, 0, out + err)
+        text = FETCH.read_text()
+        repo = re.search(r'^REPO_glmq5="([^"]+)"', text, re.M).group(1)
+        self.assertEqual(repo, "unsloth/GLM-5.3-Flash-GGUF")
+        self.assertEqual(repo, re.search(r'^REPO_glm="([^"]+)"', text, re.M).group(1))
+        self.assertEqual(re.search(r'^REV_glmq5="([^"]+)"', text, re.M).group(1),
+                         re.search(r'^REV_glm="([^"]+)"', text, re.M).group(1))
+        self.assertTrue((self.base / "glmq5" / "a.gguf").is_file())
 
     def test_check_never_downloads(self):
         code, out, err = run([FETCH, "ultra", "--check"], self.env())
@@ -248,6 +259,19 @@ class FetchTests(unittest.TestCase):
         want = [f"GLM-5.3-Flash-UD-Q5_K_XL-{i:05d}-of-00006.gguf" for i in range(1, 7)] + ["mmproj-model-bf16.gguf"]
         self.assertEqual(names, want)
 
+    def test_glmq5_is_six_stock_q5_k_xl_shards_and_the_f16_projector(self):
+        names = [r[0].rsplit("/", 1)[-1] for r in real_manifest("glmq5")]
+        want = [f"GLM-5.3-Flash-UD-Q5_K_XL-{i:05d}-of-00006.gguf" for i in range(1, 7)] + ["mmproj-F16.gguf"]
+        self.assertEqual(names, want)
+
+    def test_glmq5_and_glmabl_are_different_files(self):
+        # same file names, different bytes: the stock model must never verify as the abliterated one
+        stock = {r[0].rsplit("/", 1)[-1]: r[2] for r in real_manifest("glmq5")}
+        abl = {r[0].rsplit("/", 1)[-1]: r[2] for r in real_manifest("glmabl")}
+        for i in range(1, 7):
+            n = f"GLM-5.3-Flash-UD-Q5_K_XL-{i:05d}-of-00006.gguf"
+            self.assertNotEqual(stock[n], abl[n], n)
+
     def test_supervl_is_the_model_its_projector_and_its_mtp_head(self):
         names = sorted(r[0] for r in real_manifest("supervl"))
         self.assertEqual(names, sorted([
@@ -332,6 +356,22 @@ EOF
         self.assertIn("--port 8085", out)
         self.assertIn("--host 127.0.0.1", out)
 
+    def test_glmq5_command_has_its_f16_projector_its_six_shards_and_its_own_port(self):
+        code, out, err = run([SERVE, "glmq5", "--dry-run"], self.env())
+        self.assertEqual(code, 0, out + err)
+        self.assertIn("--mmproj " + str(self.d("glmq5") / "mmproj-F16.gguf"), out)
+        self.assertIn("-m " + str(self.d("glmq5") / "GLM-5.3-Flash-UD-Q5_K_XL-00001-of-00006.gguf"), out)
+        self.assertIn("--alias glm-5.3-flash-q5", out)
+        self.assertIn("--port 8086", out)
+        self.assertIn("--host 127.0.0.1", out)
+
+    def test_glmq5_missing_last_shard_is_caught(self):
+        (self.d("glmq5") / "GLM-5.3-Flash-UD-Q5_K_XL-00006-of-00006.gguf").unlink()
+        code, out, err = run([SERVE, "glmq5", "--dry-run"], self.env())
+        self.assertNotEqual(code, 0)
+        self.assertIn("00006-of-00006", err)
+        self.assertIn("q8-local-fetch.sh glmq5", err)
+
     def test_glmabl_missing_last_shard_is_caught(self):
         (self.d("glmabl") / "GLM-5.3-Flash-UD-Q5_K_XL-00006-of-00006.gguf").unlink()
         code, out, err = run([SERVE, "glmabl", "--dry-run"], self.env())
@@ -359,7 +399,7 @@ EOF
         self.assertIn("--spec-draft-n-max 3", out)
 
     def test_mtp_is_refused_for_the_models_that_have_none_wired(self):
-        for key in ("ultra", "glm", "glmabl"):
+        for key in ("ultra", "glm", "glmabl", "glmq5"):
             code, out, err = run([SERVE, key, "--dry-run", "--spec", "mtp"], self.env())
             self.assertEqual(code, 2, key)
             self.assertIn("only wired for supervl", err)
@@ -540,6 +580,16 @@ class ConfigAgreesWithScripts(unittest.TestCase):
                 self.assertNotIn("glm-5.3-flash-abliterated-q5", prov.get("models", []), f"listed under {name}")
         self.assertFalse(self.cfg["providers"]["nvidia-nim"].get("models", []).count("glm-5.3-flash-abliterated-q5"),
                          "NIM serves NVIDIA's catalog only; this model cannot be on it")
+
+    def test_the_coder_slot_is_reachable_only_by_model_switch(self):
+        import json
+        rest = {k: v for k, v in self.cfg.items() if k != "providers"}
+        blob = json.dumps(rest)
+        for needle in ("llamacpp-glm-q5", "glm-5.3-flash-q5", "127.0.0.1:8086"):
+            self.assertNotIn(needle, blob, f"{needle} appears outside providers:")
+        for name, prov in self.cfg["providers"].items():
+            if name != "llamacpp-glm-q5":
+                self.assertNotIn("glm-5.3-flash-q5", prov.get("models", []), f"listed under {name}")
 
     def test_each_tunnels_remote_port_is_documented_in_the_config(self):
         for key in ALL_KEYS:
