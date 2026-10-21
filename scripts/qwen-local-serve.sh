@@ -22,7 +22,7 @@
 # LOOPBACK ONLY. There is no API key on this server, so it binds 127.0.0.1 and refuses
 # any other host. The SSH tunnel is the access control.
 #
-# The flags below follow llama.cpp's docs/speculative.md (DFlash) and its MTP sidecar
+# The flags below follow the speculative-decoding page in llama.cpp's own docs (DFlash) and its MTP sidecar
 # shape (`--spec-type draft-mtp` plus `--model-draft <head>`); the spelling has changed
 # between llama.cpp builds, so the script asks the binary before it starts (see
 # --no-preflight). It has not been run against a real llama-server by the author.
