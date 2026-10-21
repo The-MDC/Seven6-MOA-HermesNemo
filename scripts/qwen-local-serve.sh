@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Serve Qwen3.8-27B Q8_0 (with vision and speculative decoding) with llama.cpp, for
-# fallback 2 in configs/hermes/config.yaml (providers.llamacpp-qwen).
+# fallback 3 in configs/hermes/config.yaml (providers.llamacpp-qwen).
 #
 # Run on the BIG box, after scripts/qwen-local-fetch.sh. Then, on the laptop that runs
 # Hermes, open the tunnel and leave it open:

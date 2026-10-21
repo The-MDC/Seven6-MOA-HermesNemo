@@ -28,9 +28,10 @@ nothing complained.
 | MoA references (3 of 5) | `custom:nvidia-nim` | `nvidia/ising-calibration-1.5-31b`, `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`, `nvidia/nemotron-3-ultra-550b-a55b`: they only advise, once per user turn |
 | MoA references (2 of 5) | `custom:or-fallback` | `z-ai/glm-5.3-flash`, `mistralai/mixtral-8x22b-instruct` |
 | 429 fallback + heavy aux | `custom:or-fallback` | fallback 1: `z-ai/glm-5.3-flash`; `compression`, `web_extract`: `qwen/qwen3.8-27b` |
-| local fallback | `custom:llamacpp-qwen` | fallback 2: `qwen3.8-27b-q8` (Qwen3.8-27B Q8_0 on llama.cpp, SSH tunnel to `127.0.0.1:8081`; skill `qwen-local`) |
-| model-level fallback | `custom:nvidia-nim` | fallback 3: `nvidia/nemotron-3.5-lightning-30b-a3b` (same bucket as the parent; answers a model failure, not a 429) |
-| offline fallback | `custom:local` | fallback 4 + 5 light auxiliary slots (3B) |
+| Hugging Face fallback | `custom:hf-fallback` | fallback 2: `nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4` (the primary's NVFP4 build through HF's router; third bucket; needs `HF_TOKEN`) |
+| local fallback | `custom:llamacpp-qwen` | fallback 3: `qwen3.8-27b-q8` (Qwen3.8-27B Q8_0 on llama.cpp, SSH tunnel to `127.0.0.1:8081`; skill `qwen-local`) |
+| model-level fallback | `custom:nvidia-nim` | fallback 4: `nvidia/nemotron-3.5-lightning-30b-a3b` (same bucket as the parent; answers a model failure, not a 429) |
+| offline fallback | `custom:local` | fallback 5 + 5 light auxiliary slots (3B) |
 | unrouted | `custom:anthropic-direct` | configured, reachable only via `/model` |
 
 `vision` routes to the primary on `custom:nvidia-nim` (a vision-language model), and

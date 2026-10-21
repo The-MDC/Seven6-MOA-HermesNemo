@@ -30,10 +30,11 @@ moa ref 3   custom:or-fallback   mistralai/mixtral-8x22b-instruct          suppo
 moa ref 4   custom:nvidia-nim    nvidia/nemotron-3-nano-omni-30b-a3b-reasoning   advisor, review
 moa ref 5   custom:nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b         reference, research, advisor, reviewer
 fallback 1  custom:or-fallback   z-ai/glm-5.3-flash                        429 escape (same id as moa ref 1)
-fallback 2  custom:llamacpp-qwen qwen3.8-27b-q8 (Qwen3.8-27B Q8_0, llama.cpp)   2026-10-21; SSH tunnel to 127.0.0.1:8081; skipped if the tunnel is down
+fallback 2  custom:hf-fallback   nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4   2026-10-21; HF router (Baseten), the primary's NVFP4 build; a third bucket
+fallback 3  custom:llamacpp-qwen qwen3.8-27b-q8 (Qwen3.8-27B Q8_0, llama.cpp)   2026-10-21; SSH tunnel to 127.0.0.1:8081; skipped if the tunnel is down
 heavy aux   custom:or-fallback   qwen/qwen3.8-27b                          compression, web_extract (hosted copy of the same model)
-fallback 3  custom:nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     model-level failover; same bucket as the parent, cannot answer a 429
-fallback 4  custom:local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0 (Ollama)   last resort + 5 light aux slots
+fallback 4  custom:nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     model-level failover; same bucket as the parent, cannot answer a 429
+fallback 5  custom:local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0 (Ollama)   last resort + 5 light aux slots
 unrouted    custom:anthropic-direct  claude-sonnet-5                 configured, intact, reachable only via /model
 ```
 

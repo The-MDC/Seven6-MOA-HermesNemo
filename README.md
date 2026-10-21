@@ -27,9 +27,10 @@ request.
 | MoA reference 4 | `custom:nvidia-nim` | `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` | advisor, review |
 | MoA reference 5 | `custom:nvidia-nim` | `nvidia/nemotron-3-ultra-550b-a55b` | reference, research, advisor, reviewer. 550B total / 55B active, text-only |
 | fallback 1 | `custom:or-fallback` | `z-ai/glm-5.3-flash` | 429 escape, different bucket (same id as MoA reference 1) |
-| fallback 2 | `custom:llamacpp-qwen` | `qwen3.8-27b-q8` | Qwen3.8-27B Q8_0 served by llama.cpp on a big machine, reached over an SSH tunnel on `127.0.0.1:8081`; answers a GLM failure and a 429 on either gateway, and is skipped when the tunnel is down. Setup: `scripts/qwen-local-fetch.sh`, `scripts/qwen-local-serve.sh`, skill `qwen-local` |
-| fallback 3 | `custom:nvidia-nim` | `nvidia/nemotron-3.5-lightning-30b-a3b` | answers a failure of the parent MODEL, not a 429: it shares the parent's bucket. Replaced the local 49B on 2026-10-19 (8 GB machine; no hosted endpoint serves the 49B) |
-| fallback 4 / floor | `custom:local` | `hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0` (Ollama) | last resort, plus 5 light auxiliary slots (title, approval, mcp, skills_hub, curator) |
+| fallback 2 | `custom:hf-fallback` | `nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4` | the primary's NVFP4 build through Hugging Face's router (Baseten): a third bucket, vision kept, no tunnel needed. `HF_TOKEN` needs the Inference Providers permission. Added 2026-10-21, on request, after OpenRouter |
+| fallback 3 | `custom:llamacpp-qwen` | `qwen3.8-27b-q8` | Qwen3.8-27B Q8_0 served by llama.cpp on a big machine, reached over an SSH tunnel on `127.0.0.1:8081`; answers a GLM failure and a 429 on either gateway, and is skipped when the tunnel is down. Setup: `scripts/qwen-local-fetch.sh`, `scripts/qwen-local-serve.sh`, skill `qwen-local` |
+| fallback 4 | `custom:nvidia-nim` | `nvidia/nemotron-3.5-lightning-30b-a3b` | answers a failure of the parent MODEL, not a 429: it shares the parent's bucket. Replaced the local 49B on 2026-10-19 (8 GB machine; no hosted endpoint serves the 49B) |
+| fallback 5 / floor | `custom:local` | `hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0` (Ollama) | last resort, plus 5 light auxiliary slots (title, approval, mcp, skills_hub, curator) |
 | heavy aux | `custom:or-fallback` | `qwen/qwen3.8-27b` | compression, web_extract (the hosted copy of the same model; 1M context, $0.04 / $1.35 per MTok) |
 | unrouted | `custom:anthropic-direct` | `claude-sonnet-5` | reachable only via `/model` |
 
@@ -37,7 +38,7 @@ request.
 draw one ~40 RPM NIM bucket; a MoA turn adds 3 NIM requests per user turn. The CI block requires any slot sharing the parent's provider to use the
 parent's exact model, and only `vision` among the auxiliary slots may share it. The
 parent no longer runs offline: offline work degrades through `fallback_providers`
-(OpenRouter GLM-5.3 Flash, the local Qwen3.8-27B over its tunnel, Nemotron 3.5 Lightning on NIM, then the local 3B). The five light auxiliary slots
+(OpenRouter GLM-5.3 Flash, Hugging Face's NVFP4 Super VL, the local Qwen3.8-27B over its tunnel, Nemotron 3.5 Lightning on NIM, then the local 3B). The five light auxiliary slots
 and the two heavy ones stay off the NIM bucket on purpose, because each is a request
 taken from the parent's RPM. To move them onto the primary too, change their
 `provider`/`model` in `config.yaml`; the CI block will refuse it until the rule is
@@ -136,7 +137,7 @@ bash   scripts/qwen-local-fetch.sh            # on the big box: the 4 Qwen3.8-27
 bash   scripts/qwen-local-serve.sh            # on the big box: llama-server (vision + MTP), loopback only
 ```
 
-### Local Qwen3.8-27B (fallback 2)
+### Local Qwen3.8-27B (fallback 3)
 
 Qwen3.8-27B at Q8_0 is 28.6 GB, so it runs on a bigger machine, not the 8 GB laptop.
 On that machine: `bash scripts/qwen-local-fetch.sh` (four files from `ggml-org/Qwen3.8-27B-GGUF`,
