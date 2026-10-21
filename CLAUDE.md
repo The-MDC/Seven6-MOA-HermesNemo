@@ -30,7 +30,8 @@ moa ref 3   custom:or-fallback   mistralai/mixtral-8x22b-instruct          suppo
 moa ref 4   custom:nvidia-nim    nvidia/nemotron-3-nano-omni-30b-a3b-reasoning   advisor, review
 moa ref 5   custom:nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b         reference, research, advisor, reviewer
 fallback 1  custom:or-fallback   z-ai/glm-5.3-flash                        429 escape (same id as moa ref 1)
-fallback 2  custom:or-fallback   qwen/qwen3.5-122b-a10b                    + 2 heavy aux (compression, web_extract)
+fallback 2  custom:llamacpp-qwen qwen3.8-27b-q8 (Qwen3.8-27B Q8_0, llama.cpp)   2026-10-21; SSH tunnel to 127.0.0.1:8081; skipped if the tunnel is down
+heavy aux   custom:or-fallback   qwen/qwen3.8-27b                          compression, web_extract (hosted copy of the same model)
 fallback 3  custom:nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     model-level failover; same bucket as the parent, cannot answer a 429
 fallback 4  custom:local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0 (Ollama)   last resort + 5 light aux slots
 unrouted    custom:anthropic-direct  claude-sonnet-5                 configured, intact, reachable only via /model
@@ -118,6 +119,7 @@ bash   scripts/repo-doctor.sh                     # toolchain, hooks, egress
 node   scripts/gateway-doctor.js                 # sticky profile (exit 78), plugin symlink stubs
 pwsh -File scripts/hermes-verify.ps1              # the acceptance gate, on the box; includes config drift
 python3 -I scripts/test_config_drift.py           # the drift checker's own tests
+python3 -I scripts/test_qwen_local.py             # the local-Qwen fetch/serve scripts (fake curl, fake llama-server)
 pwsh -File scripts/test-hermes-ps.ps1             # the PowerShell glue's tests (Linux/macOS pwsh)
 ```
 

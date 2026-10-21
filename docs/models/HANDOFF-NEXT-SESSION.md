@@ -41,7 +41,7 @@ moa ref 3   custom:or-fallback   mistralai/mixtral-8x22b-instruct          suppo
 moa ref 4   custom:nvidia-nim    nvidia/nemotron-3-nano-omni-30b-a3b-reasoning   advisor, review
 moa ref 5   custom:nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b         reference, research, advisor, reviewer
 fallback 1  custom:or-fallback   z-ai/glm-5.3-flash                        429 escape, different bucket
-fallback 2  custom:or-fallback   qwen/qwen3.5-122b-a10b                    answers a GLM failure, not a 429 on OpenRouter
+fallback 2  custom:llamacpp-qwen qwen3.8-27b-q8                            Qwen3.8-27B Q8_0 via SSH tunnel 127.0.0.1:8081 (2026-10-21)
 fallback 3  custom:nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     model-level failover; same bucket as the parent (no 429 escape)
 fallback 4  custom:local         hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
                                   last resort + the 5 light aux slots
@@ -50,7 +50,7 @@ unrouted    custom:anthropic-direct  claude-sonnet-5, Anthropic's OpenAI-compat 
 
 auxiliary   5 slots -> Hermes-3-Llama-3.2-3B-abliterated:Q8_0   routing, classification,
                                                                   titles, approval, curator
-            2 slots -> qwen/qwen3.5-122b-a10b      compression, web_extract
+            2 slots -> qwen/qwen3.8-27b            compression, web_extract (hosted)
             1 slot  -> nvidia-nim                  vision (nemotron-3.5-super-vl-120b-a12b)
 mcp         8 servers, 2 hosted (cloudflare, submcp) on an explicit CI allowlist;
             all 8 set prompts:false + resources:false (CI-enforced)

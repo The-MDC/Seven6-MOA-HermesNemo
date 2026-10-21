@@ -459,6 +459,44 @@ if ($Deep) {
     if (Get-ProviderKey 'ANTHROPIC_API_KEY') {
         Probe-Configured 'anthropic-direct' 'ANTHROPIC_API_KEY' 'x-api-key' ''
     }
+
+    # Fallback 2: the llama.cpp server behind the SSH tunnel. No key, and ADVISORY on
+    # purpose: a closed tunnel is a normal state (the laptop was closed, the big box is
+    # off), and a gate that fails on a normal state is a gate no install can pass. A
+    # dead tunnel makes Hermes skip the link; it does not break the install. What IS a
+    # failure is a server that answers but does not serve the alias the config names.
+    function Probe-Tunnel($name) {
+        $url   = Get-ProviderField $name 'api'
+        $model = Get-ProviderField $name 'default_model'
+        if (-not $url -or -not $model) {
+            Fail "could not read providers.$name (api / default_model) from $ConfigPath - refusing to guess"
+            return
+        }
+        Info "$name -> $model @ $url"
+        $u = [Uri]$url
+        if (-not (Test-Port $u.Host $u.Port)) {
+            Warn "nothing listening on $($u.Host):$($u.Port) - fallback 2 is skipped until the tunnel is open: ssh -N -L $($u.Port):127.0.0.1:8080 <user>@<big-box>"
+            return
+        }
+        try {
+            $cat = Invoke-RestMethod -Method Get -Uri "$url/models" -TimeoutSec 10
+            $ids = @($cat.data | ForEach-Object { $_.id })
+            if ($ids -contains $model) { Ok "$name lists '$model'" }
+            else { Fail "$name answers but lists [$($ids -join ', ')], not '$model' - start the server with --alias $model (scripts/qwen-local-serve.sh)" }
+        } catch {
+            Warn "$name accepted the connection but /models is unreadable: $($_.Exception.Message) (is the server behind the tunnel running?)"
+            return
+        }
+        try {
+            $body = @{ model = $model; messages = @(@{ role = 'user'; content = 'ping' }); max_tokens = 1 } | ConvertTo-Json -Depth 5
+            $r = Invoke-RestMethod -Method Post -Uri "$url/chat/completions" -ContentType 'application/json' -Body $body -TimeoutSec 120
+            if ($r.choices) { Ok "$name completed a request (served as '$($r.model)')" }
+            else { Fail "$name answered a completion with no choices" }
+        } catch {
+            Fail "$name did not complete a request for '$model': $($_.Exception.Message)"
+        }
+    }
+    Probe-Tunnel 'llamacpp-qwen'
 }
 
 # ---------------------------------------------------------------- verdict

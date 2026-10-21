@@ -245,6 +245,64 @@ exit 0
         Check ($r.Code -ne 0 -and $r.Output -match 'invalid profile name') "profile name '$bad' is refused" $r.Output
     }
 
+    # ------------------------------------------------------------ verify: local llama.cpp probe
+    Write-Host "`nhermes-verify.ps1 -Deep (llamacpp-qwen tunnel probe)" -ForegroundColor Cyan
+    function Get-FreePort { $l = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0); $l.Start(); $p = $l.LocalEndpoint.Port; $l.Stop(); return $p }
+    $fakeLlama = Join-Path $Tmp 'fake_llama.py'
+    Set-Content $fakeLlama @'
+import json, sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+port, alias = int(sys.argv[1]), sys.argv[2]
+class H(BaseHTTPRequestHandler):
+    def _send(self, obj):
+        b = json.dumps(obj).encode()
+        self.send_response(200); self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+    def do_GET(self): self._send({"data": [{"id": alias}]})
+    def do_POST(self):
+        self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        self._send({"model": alias, "choices": [{"message": {"content": "p"}}]})
+    def log_message(self, *a): pass
+HTTPServer(("127.0.0.1", port), H).serve_forever()
+'@
+    function New-TunnelHome([string]$name, [int]$port) {
+        $h = New-Home $name
+        $cfg = (Get-Content $golden -Raw).Replace('api: http://127.0.0.1:8081/v1', "api: http://127.0.0.1:$port/v1")
+        Set-Content (Join-Path $h 'config.yaml') $cfg
+        return $h
+    }
+    function Start-FakeLlama([int]$port, [string]$alias) {
+        $p = Start-Process python3 -ArgumentList @($fakeLlama, "$port", $alias) -PassThru -NoNewWindow -RedirectStandardError (Join-Path $Tmp "fake-llama-$port.err")
+        $deadline = (Get-Date).AddSeconds(8)
+        while ((Get-Date) -lt $deadline) {
+            try { $c = [Net.Sockets.TcpClient]::new('127.0.0.1', $port); $c.Close(); return $p } catch { Start-Sleep -Milliseconds 100 }
+        }
+        $p.Kill(); throw "fake llama server did not start on $port"
+    }
+
+    $port = Get-FreePort
+    $h = New-TunnelHome 'tunnel-down' $port
+    $r = Invoke-Child -ArgList @('-File', $verify, '-Stage', 'a', '-Deep') -Env @{ HERMES_HOME = $h }
+    Check ($r.Output -match "warn\s+nothing listening on 127\.0\.0\.1:$port" -and $r.Output -match 'tunnel is open') 'tunnel down -> a WARNING that says how to open it' $r.Output
+    Check ($r.Output -notmatch "FAIL\s+llamacpp-qwen") 'tunnel down -> never a FAIL (a closed laptop is a normal state)' $r.Output
+
+    $port = Get-FreePort
+    $srv = Start-FakeLlama $port 'qwen3.8-27b-q8'
+    try {
+        $h = New-TunnelHome 'tunnel-up' $port
+        $r = Invoke-Child -ArgList @('-File', $verify, '-Stage', 'a', '-Deep') -Env @{ HERMES_HOME = $h }
+        Check ($r.Output -match "ok\s+llamacpp-qwen lists 'qwen3\.8-27b-q8'" -and $r.Output -match 'ok\s+llamacpp-qwen completed a request') 'server up, right alias -> ok on the alias and on a completion' $r.Output
+    } finally { if (-not $srv.HasExited) { $srv.Kill() } }
+
+    $port = Get-FreePort
+    $srv = Start-FakeLlama $port 'some-other-model'
+    try {
+        $h = New-TunnelHome 'tunnel-wrong' $port
+        $r = Invoke-Child -ArgList @('-File', $verify, '-Stage', 'a', '-Deep') -Env @{ HERMES_HOME = $h }
+        Check ($r.Output -match "FAIL\s+llamacpp-qwen answers but lists \[some-other-model\], not 'qwen3\.8-27b-q8'") 'server up, WRONG alias -> FAIL naming both' $r.Output
+        Check ($r.Output -match '--alias qwen3\.8-27b-q8') 'the FAIL tells you the flag that fixes it' $r.Output
+    } finally { if (-not $srv.HasExited) { $srv.Kill() } }
+
     # ------------------------------------------------------------ update wrapper
     Write-Host "`nhermes-update-safe.ps1" -ForegroundColor Cyan
     $upd = Join-Path $Scripts 'hermes-update-safe.ps1'

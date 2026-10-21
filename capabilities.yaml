@@ -157,6 +157,13 @@ skills:
   source: ported
   category: media
   asymmetry_reason: ported from an external source or hand-written for Hermes; has no counterpart in .claude/skills/
+- name: qwen-local
+  surfaces:
+  - hermes
+  source: hand-written
+  category: operations
+  asymmetry_reason: instructs Hermes' own terminal and process tools to run this repo's fetch, serve and tunnel steps on the
+    right machine; Claude Code has no use for it (the scripts are run directly)
 - name: security-audit
   surfaces:
   - hermes
