@@ -119,7 +119,7 @@ classification, tool selection, titles, curation.
 
 The local 49B GGUF (~58.68 GB) was the parent from 2026-09-28 to 2026-10-19 and
 fallback 2 after that. It was removed on 2026-10-19: the target machine has 8 GB of
-RAM, and no hosted endpoint serves that model. The NIM fallback (now fallback 3) is
+RAM, and no hosted endpoint serves that model. The NIM fallback (now fallback 4) is
 `nvidia/nemotron-3.5-lightning-30b-a3b` on NVIDIA NIM (§3), which needs no download.
 
 If you only want Hermes conversing, you can stop after 2.1 and §3: the parent is
@@ -150,7 +150,7 @@ OPENROUTER_API_KEY=sk-or-v1-...
 
 | key | from | serves |
 |---|---|---|
-| `OPENROUTER_API_KEY` | openrouter.ai/keys | **fallbacks 1 and 2, two MoA references, heavy aux** — GLM-5.3 Flash, Mixtral 8x22B instruct, Qwen3.5-122B-A10B |
+| `OPENROUTER_API_KEY` | openrouter.ai/keys | **fallback 1, two MoA references, heavy aux** — GLM-5.3 Flash, Mixtral 8x22B instruct, Qwen3.8-27B (hosted) |
 | `NVIDIA_API_KEY` | build.nvidia.com | **the primary: parent + subagents + MoA aggregator + vision, plus 3 MoA references** — nemotron-3.5-super-vl-120b-a12b |
 
 `NVIDIA_API_KEY` is strictly required for Hermes to start. Missing
@@ -213,7 +213,7 @@ need opposite fixes.
 **This is the step that answers the one thing CI structurally cannot:** whether
 Ollama actually has the floor model loaded and serving (§2.1), whether
 `nvidia/nemotron-3.5-lightning-30b-a3b` is callable with your NVIDIA key, and
-whether `qwen/qwen3.5-122b-a10b` is actually on OpenRouter. Neither is
+whether `qwen/qwen3.8-27b` is actually on OpenRouter. Neither is
 verifiable from the build container.
 
 Three outcomes, three different meanings:
@@ -243,9 +243,10 @@ moa ref 3   or-fallback   mistralai/mixtral-8x22b-instruct     API only; support
 moa ref 4   nvidia-nim    nvidia/nemotron-3-nano-omni-30b-a3b-reasoning   API only; advisor, review
 moa ref 5   nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b    API only; reference, research, advisor, reviewer
 fallback 1  or-fallback   z-ai/glm-5.3-flash                   API only; the 429 escape
-fallback 2  or-fallback   Qwen3.5-122B-A10B                    API only, also 2 heavy aux slots
-fallback 3  nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     API only; same bucket as the parent (model-level failover, not a 429 escape)
-fallback 4  local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0
+fallback 2  hf-fallback   nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4   API only; the primary's NVFP4 build via HF's router (needs HF_TOKEN)
+fallback 3  llamacpp-qwen  qwen3.8-27b-q8                      local llama.cpp over an SSH tunnel (127.0.0.1:8081)
+fallback 4  nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     API only; same bucket as the parent (model-level failover, not a 429 escape)
+fallback 5  local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0
                           last resort + 5 light aux slots
 unrouted    anthropic-direct  claude-sonnet-5    configured, intact, via /model only
 ```

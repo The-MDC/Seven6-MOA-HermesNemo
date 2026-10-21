@@ -115,6 +115,11 @@ jobs:
       # PowerShell glue -- launcher, autostart, update wrapper, profile apply, and the
       # drift section of hermes-verify -- against a fake `hermes` on PATH.
       #
+      # The local Qwen3.8-27B (fallback 3) has the same shape of risk: scripts that
+      # pull 34 GB and start a CUDA server cannot run in CI, so test_qwen_local.py runs
+      # them against a fake curl and a fake llama-server, and requires the serve
+      # script's alias and window to equal providers.llamacpp-qwen in the config.
+      #
       # Windows-only calls (Register-ScheduledTask, the Startup folder, User-scope
       # environment variables) cannot run here and are NOT covered: on the box,
       # `hermes-dashboard-autostart.ps1 -Action Install -WhatIf` is that test.
@@ -124,6 +129,7 @@ jobs:
           set -euo pipefail
           python3 -c 'import yaml' || python3 -m pip install --quiet pyyaml
           python3 -I scripts/test_config_drift.py
+          python3 -I scripts/test_qwen_local.py
           pwsh -NoLogo -NoProfile -File scripts/test-hermes-ps.ps1
 
       # The Hermes config is data, not code: nothing in this repo executes it, so a

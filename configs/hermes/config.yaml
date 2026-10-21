@@ -40,8 +40,14 @@
 #               NVIDIA NIM     ising-calibration-1.5-31b, nemotron-3-nano-omni-30b-a3b-reasoning,
 #                              nemotron-3-ultra-550b-a55b  -- see the moa: block
 #   fallback    OpenRouter     z-ai/glm-5.3-flash         1st link in fallback_providers
-#               OpenRouter     Qwen3.5-122B-A10B          2nd link
-#               NVIDIA NIM     nvidia/nemotron-3.5-lightning-30b-a3b         3rd link (2026-10-19, on request;
+#               Hugging Face   NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4   2nd link (2026-10-21,
+#                              on request: "Keep OpenRouter as a fallback, followed by Hugging
+#                              Face"; the primary's NVFP4 build through HF's router -- see
+#                              providers.hf-fallback)
+#               llama.cpp      Qwen3.8-27B Q8_0 (qwen3.8-27b-q8)   3rd link (2026-10-21, on request;
+#                              a server you run on a big box and reach over an SSH tunnel on
+#                              127.0.0.1:8081 -- see providers.llamacpp-qwen)
+#               NVIDIA NIM     nvidia/nemotron-3.5-lightning-30b-a3b         4th link (2026-10-19, on request;
 #                                                         replaces the local 49B, which an
 #                                                         8 GB machine cannot load). Same
 #                                                         bucket as the parent -- see the
@@ -50,7 +56,9 @@
 #                              last link in fallback_providers, plus the five light
 #                              auxiliary slots (title, approval, mcp, skills_hub,
 #                              curator) -- kept off the NIM bucket on purpose
-#   heavy aux   OpenRouter     Qwen3.5-122B-A10B          compression, web_extract
+#   heavy aux   OpenRouter     qwen/qwen3.8-27b           compression, web_extract (the hosted copy
+#                              of the same model fallback 3 serves locally; kept off the
+#                              tunnel on purpose -- see the auxiliary: block)
 #   unrouted    Anthropic      claude-sonnet-5            anthropic-direct: configured,
 #                              intact, reachable only via /model
 #
@@ -77,7 +85,7 @@
 #      `local` provider's comment for the pull command. A model listed here but
 #      absent on the machine is exactly the dangling reference CI rejects in config
 #      and cannot detect on disk. scripts/hermes-verify.ps1 checks it.
-#   2. That NVIDIA_API_KEY can call nvidia/nemotron-3.5-lightning-30b-a3b (fallback 3). The public
+#   2. That NVIDIA_API_KEY can call nvidia/nemotron-3.5-lightning-30b-a3b (fallback 4). The public
 #      listing says the id exists; it does not say THIS key may call it:
 #          curl -s https://integrate.api.nvidia.com/v1/models/nvidia/nemotron-3.5-lightning-30b-a3b
 #          NVIDIA_NIM_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b bash scripts/nim-preflight.sh
@@ -90,10 +98,20 @@
 #          NVIDIA_NIM_MODEL=nvidia/nemotron-3-ultra-550b-a55b bash scripts/nim-preflight.sh
 #      A catalog that lists a model for one key can omit it for another, and the
 #      public catalog listing says nothing about whether THIS key may call a 550B.
-#   4. That OPENROUTER_API_KEY can call the two OpenRouter MoA references and
-#      fallback 1 (z-ai/glm-5.3-flash, mistralai/mixtral-8x22b-instruct). The public
-#      catalog lists them (checked 2026-10-20); it does not say THIS key may call them:
-#          curl -s https://openrouter.ai/api/v1/models | grep -o '"id":"z-ai/glm-5.3-flash"'
+#   4. That OPENROUTER_API_KEY can call the two OpenRouter MoA references, fallback 1
+#      and the two heavy aux slots (z-ai/glm-5.3-flash, mistralai/mixtral-8x22b-instruct,
+#      qwen/qwen3.8-27b). The public catalog lists them (checked 2026-10-21); it does
+#      not say THIS key may call them:
+#          curl -s https://openrouter.ai/api/v1/models | grep -o '"id":"qwen/qwen3.8-27b"'
+#   5. That the llama.cpp server behind fallback 3 is up AND that the SSH tunnel to it is
+#      open. Nothing in this file can see either. A dead tunnel is not an error: Hermes
+#      skips the link and tries the next one. `pwsh scripts/hermes-verify.ps1 -Deep`
+#      probes it and WARNS (never fails) when it is down.
+#   6. That HF_TOKEN can CALL the Hugging Face fallback (fallback 2). It must be a token
+#      with the "Make calls to Inference Providers" permission. The catalog cannot show
+#      that: GET https://router.huggingface.co/v1/models answers HTTP 200 with no token and
+#      with a bogus one (checked 2026-10-21). Only a chat completion tells them apart:
+#          bash scripts/nim-preflight.sh        (sends a one-token chat to the HF router)
 # ---------------------------------------------------------------------------
 
 providers:
@@ -110,7 +128,7 @@ providers:
     # PRIMARY MODEL, 2026-10-19, on request: nvidia/nemotron-3.5-super-vl-120b-a12b
     # carries parent, subagents, MoA reference and vision (see model:, delegation:,
     # moa:, auxiliary.vision). The other NVIDIA models routed to are three MoA
-    # REFERENCES (Ising, Omni, Ultra, below) and fallback 3 (Lightning); GLM-5.3 Flash
+    # REFERENCES (Ising, Omni, Ultra, below) and fallback 4 (Lightning); GLM-5.3 Flash
     # and Mixtral instruct go through OpenRouter. Everything else in this file is an
     # unrouted gateway kept intact on request (anthropic-direct), failover only
     # (or-fallback, local), or a deliberate non-NIM side job (see auxiliary:).
@@ -166,7 +184,7 @@ providers:
     #
     # `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` stays in `models:` for the
     # /model picker and is routed nowhere.
-    # FALLBACK 3: nvidia/nemotron-3.5-lightning-30b-a3b (2026-10-19, on request; replaces the local 49B).
+    # FALLBACK 4: nvidia/nemotron-3.5-lightning-30b-a3b (2026-10-19, on request; replaces the local 49B).
     # Chosen over z-ai/glm-5.3-flash the same evening, on request ("it may need a smaller or
     # different model"). 30B total / ~3B active by its id. It is the ONLY Lightning size NIM,
     # OpenRouter and Hugging Face list; there is no 120B Lightning.
@@ -216,11 +234,15 @@ providers:
     transport: chat_completions
     # The 429 escape hatch, AND the workhorse for the two heavy auxiliary slots
     # (compression, web_extract). Both jobs land on one model on purpose.
-    # context_length below has not been re-measured against Qwen's actual
-    # OpenRouter listing; verify it and tool-call behaviour before trusting it.
-    default_model: qwen/qwen3.5-122b-a10b
+    # 2026-10-21, on request: Qwen3.5-122B-A10B is replaced by Qwen3.8-27B. Checked
+    # against openrouter.ai/api/v1/models the same day: 1,000,000 context, text+image+
+    # video in, tools + reasoning supported, $0.04 in / $1.35 out per MTok. The
+    # context_length below is held at 262,144 (the model's native window) rather than
+    # the listed million; raise it only once `hermes-verify.ps1 -Deep` shows the
+    # endpoint honours more.
+    default_model: qwen/qwen3.8-27b
     models:
-      - qwen/qwen3.5-122b-a10b
+      - qwen/qwen3.8-27b
       # 2026-10-20, on request. Verified against openrouter.ai/api/v1/models the same
       # day: 1,048,576 context, text+image+video in, tools supported,
       # $0.047 in / $0.16 out per MTok. MoA reference 1, advisor, and FALLBACK 1.
@@ -234,6 +256,44 @@ providers:
     # Held at the parent's window rather than the architectural million, for the
     # same reason: raise it to what the endpoint advertises, not the model card.
     context_length: 262144
+
+  hf-fallback:
+    name: "Hugging Face (Inference Providers router)"
+    api: https://router.huggingface.co/v1
+    key_env: HF_TOKEN
+    transport: chat_completions
+    # FALLBACK 2 (2026-10-21, on request: "Keep OpenRouter as a fallback, followed by
+    # Hugging Face"). The primary's own model on a THIRD bucket: HF's router fronts
+    # Baseten, which serves the NVFP4 build of Nemotron 3.5 Super VL. Checked against
+    # GET https://router.huggingface.co/v1/models the same day (134 models): text+image
+    # in, tools supported, 1,048,576 context, one provider (Baseten), status live,
+    # $0.20 in / $0.50 out per MTok. It answers a 429 on NIM AND on OpenRouter, keeps
+    # vision, and unlike fallback 3 it needs no tunnel and no machine of yours running.
+    #
+    # THE MODEL ID BELONGS TO THIS GATEWAY. It is not NIM's
+    # (nvidia/nemotron-3.5-super-vl-120b-a12b), not OpenRouter's
+    # (nvidia/nemotron-3.5-super-vl) and not the BF16 repo's. It is the NVFP4
+    # quantization, so treat it as the same model for routing, not as a bit-identical
+    # one: its numerics differ from the primary's.
+    #
+    # THE KEY. HF_TOKEN needs the "Make calls to Inference Providers" permission, and
+    # Inference Providers usage is billed to the HF account. GET /v1/models answers
+    # HTTP 200 with no token and with a bogus one (checked), so a catalog probe cannot
+    # tell a good token from a bad one; a chat completion can (HTTP 401 without a
+    # token, checked). hermes-verify.ps1 -Deep and nim-preflight.sh therefore send a
+    # one-token chat. The router picks among the providers the account allows; Baseten
+    # is the only one listed for this id today.
+    #
+    # UNVERIFIED: no completion has been sent to this endpoint from this repo (no HF
+    # token in the build sandbox). compression.model_thresholds needs no new key:
+    # "nemotron-3.5-super-vl" matches this id by case-insensitive substring.
+    default_model: nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4
+    models:
+      - nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4
+    discover_models: false
+    # Held at the primary's window rather than the listed million, for the reason the
+    # other fallbacks are: raise it to what the endpoint honours, not to a listing.
+    context_length: 131072
 
   local:
     name: "Ollama (this machine)"
@@ -276,6 +336,46 @@ providers:
     # sized for the 3B floor model. 32768 is a conservative floor, not a measured
     # optimum.
     context_length: 32768
+
+  llamacpp-qwen:
+    name: "llama.cpp (Qwen3.8-27B Q8_0, over an SSH tunnel)"
+    # FALLBACK 3 (2026-10-21, on request: "the best q8 you can find on HF ... and all
+    # accompanying files"). Qwen3.8-27B is a dense 27B vision-language model (Apache
+    # 2.0, 262,144 native context). It does NOT fit this 8 GB laptop (the Q8_0 is
+    # 28.6 GB), so it runs on a bigger machine and this entry points at a TUNNEL:
+    #     ssh -N -L 8081:127.0.0.1:8080 <user>@<big-box>        (keep it open)
+    # Loopback on purpose, for two reasons: nothing is exposed on the LAN and no key
+    # exists to leak, and CI's rule for a loopback provider (no key_env) then holds.
+    # Run on the big box: scripts/qwen-local-fetch.sh, then scripts/qwen-local-serve.sh.
+    #
+    # THE MODEL ID BELONGS TO THIS GATEWAY. `qwen3.8-27b-q8` is the --alias that
+    # scripts/qwen-local-serve.sh gives llama-server; it is not the Hugging Face id
+    # (Qwen/Qwen3.8-27B) and not OpenRouter's (qwen/qwen3.8-27b), which is a different
+    # provider entry above. Change one and the other must follow.
+    #
+    # FILES (ggml-org/Qwen3.8-27B-GGUF, headers read and sizes taken 2026-10-21):
+    #   Qwen3.8-27B-Q8_0.gguf          28,595,763,648 B  qwen35, 64 blocks, 851 tensors
+    #   mmproj-Qwen3.8-27B-Q8_0.gguf      629,247,008 B  vision encoder (qwen3vl_merger)
+    #   mtp-Qwen3.8-27B-Q8_0.gguf       3,164,006,816 B  MTP head, a SEPARATE file
+    #   dflash-Qwen3.8-27B-Q8_0.gguf    2,056,414,560 B  DFlash drafter, block size 8
+    # The main file holds no MTP tensors (checked: zero `nextn` tensors), so the MTP head
+    # is not optional decoration -- without the sidecar there is no MTP to switch on.
+    # Speculative decoding is output-equivalent: the target verifies every token. MTP
+    # and DFlash are alternatives; the serve script runs one at a time (default MTP).
+    #
+    # No key: a tunnel to a server you control authenticates nothing here.
+    api: http://127.0.0.1:8081/v1
+    api_key: "no-key-required"
+    transport: chat_completions
+    default_model: qwen3.8-27b-q8
+    models:
+      - qwen3.8-27b-q8
+    discover_models: false
+    # The serve script starts llama-server with the same -c. Only 16 of the 64 layers
+    # use full attention, so the KV cache is small: 2 x 16 layers x 4 KV heads x 256 dim
+    # x 2 bytes = 64 KiB per token, about 16 GiB at 262,144 tokens in f16 (arithmetic
+    # from the GGUF header, not a measurement). Lower both together if the box is tight.
+    context_length: 262144
 
   anthropic-direct:
     name: "Anthropic (OpenAI-compatible endpoint)"
@@ -354,7 +454,7 @@ fallback_providers:
   # A 429 or an outage on the parent falls through to a different provider rather
   # than stopping. The FIRST link sits on a DIFFERENT bucket from the parent, because
   # a 429 on nvidia-nim cannot be answered from nvidia-nim (CI enforces it). The one
-  # sanctioned later link on the parent's endpoint is fallback 3 below.
+  # sanctioned later link on the parent's endpoint is fallback 4 below.
   #
   # FALLBACK 1 -- OpenRouter, GLM-5.3 Flash (2026-10-20, on request: "fall back 1 or
   # 2"). Placed first because the first link must be off NIM and this is the
@@ -364,14 +464,25 @@ fallback_providers:
     model: z-ai/glm-5.3-flash
     base_url: https://openrouter.ai/api/v1
     key_env: OPENROUTER_API_KEY
-  # FALLBACK 2 -- OpenRouter, Qwen3.5-122B-A10B. Same endpoint as fallback 1, so it
-  # answers a failure of GLM, not a 429 on OpenRouter. Matches `or-fallback`'s own
-  # default_model, which the two heavy auxiliary slots use -- see that entry.
+  # FALLBACK 2 -- Hugging Face's router, the primary's NVFP4 build (2026-10-21, on request:
+  # "Keep OpenRouter as a fallback, followed by Hugging Face"). A third bucket, so it
+  # answers a 429 on NIM and on OpenRouter; the primary's own model, with vision; cloud,
+  # so it needs nothing of yours running. UNVERIFIED end to end -- see providers.hf-fallback.
   - provider: custom
-    model: qwen/qwen3.5-122b-a10b
-    base_url: https://openrouter.ai/api/v1
-    key_env: OPENROUTER_API_KEY
-  # FALLBACK 3 -- nvidia/nemotron-3.5-lightning-30b-a3b on NVIDIA NIM (2026-10-19, on request; replaces
+    model: nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4
+    base_url: https://router.huggingface.co/v1
+    key_env: HF_TOKEN
+  # FALLBACK 3 -- Qwen3.8-27B Q8_0 on llama.cpp, through the SSH tunnel on 127.0.0.1:8081
+  # (2026-10-21, on request; replaces Qwen3.5-122B-A10B on OpenRouter). Off OpenRouter
+  # AND off NIM, so it answers a failure of GLM and a 429 on either gateway -- if the
+  # tunnel is up. If the tunnel is down nothing listens on 8081, so the connection is
+  # refused at once; Hermes is expected to treat that as a failed link and move to
+  # fallback 4. UNVERIFIED on this build -- see providers.llamacpp-qwen.
+  - provider: custom
+    model: qwen3.8-27b-q8
+    base_url: http://127.0.0.1:8081/v1
+    api_key: "no-key-required"
+  # FALLBACK 4 -- nvidia/nemotron-3.5-lightning-30b-a3b on NVIDIA NIM (2026-10-19, on request; replaces
   # the local 49B, which an 8 GB machine cannot load). SAME ENDPOINT AND BUCKET AS THE
   # PARENT: it answers a failure of the parent MODEL (retired id, 5xx), not a 429 and
   # not a NIM-wide outage. Fallback 1 is the 429 escape, so it stays first. This is
@@ -560,11 +671,13 @@ web:
 #   /model custom:nvidia-nim:nvidia/nemotron-3.5-super-vl-120b-a12b                      (the parent)
 #   /model custom:nvidia-nim:nvidia/nemotron-3-ultra-550b-a55b                           (a MoA reference; text-only)
 #   /model custom:nvidia-nim:nvidia/nemotron-3-nano-omni-30b-a3b-reasoning               (a MoA reference)
-#   /model custom:or-fallback:qwen/qwen3.5-122b-a10b                                           (fallback 2)
+#   /model custom:llamacpp-qwen:qwen3.8-27b-q8                                                (fallback 3; needs the tunnel)
+#   /model custom:or-fallback:qwen/qwen3.8-27b                                                (heavy aux, hosted copy)
 #   /model custom:or-fallback:z-ai/glm-5.3-flash                                              (MoA reference 1, fallback 1)
+#   /model custom:hf-fallback:nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4   (fallback 2)
 #   /model custom:or-fallback:mistralai/mixtral-8x22b-instruct                                (MoA reference)
 #   /model custom:nvidia-nim:nvidia/ising-calibration-1.5-31b                                 (MoA reference)
-#   /model custom:nvidia-nim:nvidia/nemotron-3.5-lightning-30b-a3b                                          (fallback 3)
+#   /model custom:nvidia-nim:nvidia/nemotron-3.5-lightning-30b-a3b                                          (fallback 4)
 #   /model custom:local:hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
 #   /model custom:anthropic-direct:claude-sonnet-5       (needs ANTHROPIC_API_KEY)
 # ---------------------------------------------------------------------------
@@ -616,6 +729,11 @@ excluded_providers:
   - novita
   - nebius
   - azure
+  # 2026-10-21: the Hugging Face gateway is routed only as the custom provider
+  # `hf-fallback`. Both names here hide the built-in entries; neither is a key that
+  # provider surfaces under, so the custom one stays visible.
+  - huggingface
+  - hf
 
 # ---------------------------------------------------------------------------
 # VOICE — jamiepine/hermes-voicebox
@@ -848,12 +966,19 @@ tools:
 # configured). Vision is PINNED, not auto -- see its own comment below for why
 # `auto` is unsafe here specifically.
 auxiliary:
+  # Qwen3.8-27B, hosted (2026-10-21, on request; replaces Qwen3.5-122B-A10B). The same
+  # weights fallback 3 serves locally, but NOT routed through the tunnel on purpose:
+  # compression rewrites history and web_extract runs per page. A dense 27B reads all
+  # 28.6 GB per token, so a 273 GB/s-class box tops out near 9 tokens/s without
+  # speculation (arithmetic, not measured; MTP raises it), and a dead tunnel would
+  # stall both jobs. To move them local later, point these two
+  # slots at provider "custom:llamacpp-qwen" and model qwen3.8-27b-q8 -- CI accepts it.
   compression:
     provider: "custom:or-fallback"
-    model: qwen/qwen3.5-122b-a10b
+    model: qwen/qwen3.8-27b
   web_extract:
     provider: "custom:or-fallback"
-    model: qwen/qwen3.5-122b-a10b
+    model: qwen/qwen3.8-27b
   # VISION: nemotron-3.5-super-vl-120b-a12b. The "VL" in that id is the point: it is
   # a vision-language model (image, video and text in), so the parent can see and
   # this slot needs no separate image-only model. The id is live-verified (see the
@@ -932,7 +1057,7 @@ compression:
   enabled: true
   threshold: 0.50          # global default, unchanged
   model_thresholds:
-    # Fallback 3 (nvidia/nemotron-3.5-lightning-30b-a3b on NIM). It spends the same ~40 RPM bucket as the
+    # Fallback 4 (nvidia/nemotron-3.5-lightning-30b-a3b on NIM). It spends the same ~40 RPM bucket as the
     # parent, so a compaction costs it the same request; held at the parent's 0.70
     # rather than the 0.50 global default. Not tuned against Lightning's real window.
     "nemotron-3.5-lightning": 0.70
