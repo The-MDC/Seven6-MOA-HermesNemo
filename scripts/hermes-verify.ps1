@@ -463,12 +463,17 @@ if ($Deep) {
         Probe-Configured 'anthropic-direct' 'ANTHROPIC_API_KEY' 'x-api-key' ''
     }
 
-    # Fallback 3: the llama.cpp server behind the SSH tunnel. No key, and ADVISORY on
-    # purpose: a closed tunnel is a normal state (the laptop was closed, the big box is
+    # Fallbacks 3 and 4 and the two opt-in MoA references: the llama.cpp servers behind
+    # SSH tunnels. No key, and ADVISORY on purpose: a closed tunnel is a normal state (the laptop was closed, the big box is
     # off), and a gate that fails on a normal state is a gate no install can pass. A
     # dead tunnel makes Hermes skip the link; it does not break the install. What IS a
     # failure is a server that answers but does not serve the alias the config names.
-    function Probe-Tunnel($name) {
+    #   $role       what is skipped while the tunnel is down, for the warning text
+    #   $remotePort the port llama-server binds on the big box (the tunnel's far end)
+    #   $serveCmd   the command that starts the server with the alias the config names
+    #   $optIn      the two MoA-preset-only servers: a closed tunnel is the DEFAULT state,
+    #               so it is reported as info, not a warning; an open one is probed in full
+    function Probe-Tunnel($name, $role, $remotePort, $serveCmd, $optIn = $false) {
         $url   = Get-ProviderField $name 'api'
         $model = Get-ProviderField $name 'default_model'
         if (-not $url -or -not $model) {
@@ -478,14 +483,18 @@ if ($Deep) {
         Info "$name -> $model @ $url"
         $u = [Uri]$url
         if (-not (Test-Port $u.Host $u.Port)) {
-            Warn "nothing listening on $($u.Host):$($u.Port) - fallback 3 is skipped until the tunnel is open: ssh -N -L $($u.Port):127.0.0.1:8080 <user>@<big-box>"
+            if ($optIn) {
+                Info "$name is not running ($role; tunnel closed). Fine unless moa.presets.local-q8 is selected: ssh -N -L $($u.Port):127.0.0.1:${remotePort} <user>@<big-box>"
+            } else {
+                Warn "nothing listening on $($u.Host):$($u.Port) - $role is skipped until the tunnel is open: ssh -N -L $($u.Port):127.0.0.1:${remotePort} <user>@<big-box>"
+            }
             return
         }
         try {
             $cat = Invoke-RestMethod -Method Get -Uri "$url/models" -TimeoutSec 10
             $ids = @($cat.data | ForEach-Object { $_.id })
             if ($ids -contains $model) { Ok "$name lists '$model'" }
-            else { Fail "$name answers but lists [$($ids -join ', ')], not '$model' - start the server with --alias $model (scripts/qwen-local-serve.sh)" }
+            else { Fail "$name answers but lists [$($ids -join ', ')], not '$model' - start the server with --alias $model ($serveCmd)" }
         } catch {
             Warn "$name accepted the connection but /models is unreadable: $($_.Exception.Message) (is the server behind the tunnel running?)"
             return
@@ -499,7 +508,10 @@ if ($Deep) {
             Fail "$name did not complete a request for '$model': $($_.Exception.Message)"
         }
     }
-    Probe-Tunnel 'llamacpp-qwen'
+    Probe-Tunnel 'llamacpp-supervl-q8' 'fallback 3' 8082 'scripts/q8-local-serve.sh supervl'
+    Probe-Tunnel 'llamacpp-qwen'       'fallback 4' 8080 'scripts/qwen-local-serve.sh'
+    Probe-Tunnel 'llamacpp-ultra-q8'   'the opt-in Ultra reference' 8083 'scripts/q8-local-serve.sh ultra' $true
+    Probe-Tunnel 'llamacpp-glm-q8'     'the opt-in GLM reference'   8084 'scripts/q8-local-serve.sh glm' $true
 }
 
 # ---------------------------------------------------------------- verdict

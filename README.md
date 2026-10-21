@@ -28,9 +28,12 @@ request.
 | MoA reference 5 | `custom:nvidia-nim` | `nvidia/nemotron-3-ultra-550b-a55b` | reference, research, advisor, reviewer. 550B total / 55B active, text-only |
 | fallback 1 | `custom:or-fallback` | `z-ai/glm-5.3-flash` | 429 escape, different bucket (same id as MoA reference 1) |
 | fallback 2 | `custom:hf-fallback` | `nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4` | the primary's NVFP4 build through Hugging Face's router (Baseten): a third bucket, vision kept, no tunnel needed. `HF_TOKEN` needs the Inference Providers permission. Added 2026-10-21, on request, after OpenRouter |
-| fallback 3 | `custom:llamacpp-qwen` | `qwen3.8-27b-q8` | Qwen3.8-27B Q8_0 served by llama.cpp on a big machine, reached over an SSH tunnel on `127.0.0.1:8081`; answers a GLM failure and a 429 on either gateway, and is skipped when the tunnel is down. Setup: `scripts/qwen-local-fetch.sh`, `scripts/qwen-local-serve.sh`, skill `qwen-local` |
-| fallback 4 | `custom:nvidia-nim` | `nvidia/nemotron-3.5-lightning-30b-a3b` | answers a failure of the parent MODEL, not a 429: it shares the parent's bucket. Replaced the local 49B on 2026-10-19 (8 GB machine; no hosted endpoint serves the 49B) |
-| fallback 5 / floor | `custom:local` | `hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0` (Ollama) | last resort, plus 5 light auxiliary slots (title, approval, mcp, skills_hub, curator) |
+| fallback 3 | `custom:llamacpp-supervl-q8` | `nemotron-3.5-super-vl-120b-a12b-q8` | the primary's own weights at Q8_0 (133.7 GB) served by llama.cpp on a big machine, over an SSH tunnel on `127.0.0.1:8082`; answers a 429 on NIM, OpenRouter and Hugging Face alike, keeps vision, and is skipped when the tunnel is down. Added 2026-10-21, on request. Setup: `scripts/q8-local-fetch.sh supervl`, `scripts/q8-local-serve.sh supervl`, skill `q8-local` |
+| fallback 4 | `custom:llamacpp-qwen` | `qwen3.8-27b-q8` | Qwen3.8-27B Q8_0 served by llama.cpp on a big machine, reached over an SSH tunnel on `127.0.0.1:8081`; answers a GLM failure and a 429 on either gateway, and is skipped when the tunnel is down. Setup: `scripts/qwen-local-fetch.sh`, `scripts/qwen-local-serve.sh`, skill `qwen-local` |
+| fallback 5 | `custom:nvidia-nim` | `nvidia/nemotron-3.5-lightning-30b-a3b` | answers a failure of the parent MODEL, not a 429: it shares the parent's bucket. Replaced the local 49B on 2026-10-19 (8 GB machine; no hosted endpoint serves the 49B) |
+| fallback 6 / floor | `custom:local` | `hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0` (Ollama) | last resort, plus 5 light auxiliary slots (title, approval, mcp, skills_hub, curator) |
+| opt-in MoA reference | `custom:llamacpp-ultra-q8` | `nemotron-3-ultra-550b-a55b-q8` | Ultra at UD-Q8_K_XL (594.5 GB, text only) over a tunnel on `127.0.0.1:8083`. Used only by `moa.presets.local-q8`; takes Ultra's request off the NIM bucket (2 extra NIM requests per MoA turn instead of 3) |
+| opt-in MoA reference | `custom:llamacpp-glm-q8` | `glm-5.3-flash-q8` | GLM-5.3-Flash at Q8_0 (342.1 GB) over a tunnel on `127.0.0.1:8084`. Used only by `moa.presets.local-q8`; needs a llama.cpp build with the GLM-5.3-Flash architecture |
 | heavy aux | `custom:or-fallback` | `qwen/qwen3.8-27b` | compression, web_extract (the hosted copy of the same model; 1M context, $0.04 / $1.35 per MTok) |
 | unrouted | `custom:anthropic-direct` | `claude-sonnet-5` | reachable only via `/model` |
 
@@ -38,7 +41,7 @@ request.
 draw one ~40 RPM NIM bucket; a MoA turn adds 3 NIM requests per user turn. The CI block requires any slot sharing the parent's provider to use the
 parent's exact model, and only `vision` among the auxiliary slots may share it. The
 parent no longer runs offline: offline work degrades through `fallback_providers`
-(OpenRouter GLM-5.3 Flash, Hugging Face's NVFP4 Super VL, the local Qwen3.8-27B over its tunnel, Nemotron 3.5 Lightning on NIM, then the local 3B). The five light auxiliary slots
+(OpenRouter GLM-5.3 Flash, Hugging Face's NVFP4 Super VL, the local Q8_0 Super VL and the local Qwen3.8-27B over their tunnels, Nemotron 3.5 Lightning on NIM, then the local 3B). The five light auxiliary slots
 and the two heavy ones stay off the NIM bucket on purpose, because each is a request
 taken from the parent's RPM. To move them onto the primary too, change their
 `provider`/`model` in `config.yaml`; the CI block will refuse it until the rule is
@@ -133,11 +136,40 @@ bash   scripts/repo-doctor.sh                 # toolchain, hooks, egress
 python3 scripts/check-capabilities.py         # registry vs disk
 node   scripts/port-skills-to-hermes.js       # re-port skills to both surfaces
 node   scripts/port-skills-to-hermes.js --check   # what has drifted upstream
+bash   scripts/q8-local-fetch.sh supervl      # on the big box: Super VL Q8_0 (3 files, 133.7 GB); also ultra, glm, all
+bash   scripts/q8-local-serve.sh supervl      # on the big box: llama-server, loopback only, port 8082 (8083 ultra, 8084 glm)
 bash   scripts/qwen-local-fetch.sh            # on the big box: the 4 Qwen3.8-27B Q8_0 files, verified
 bash   scripts/qwen-local-serve.sh            # on the big box: llama-server (vision + MTP), loopback only
 ```
 
-### Local Qwen3.8-27B (fallback 3)
+### Local Q8+ models (fallback 3 and two opt-in MoA references)
+
+Three models, one fetch script and one serve script (`q8-local-fetch.sh` / `q8-local-serve.sh`),
+each taking `supervl`, `ultra` or `glm`. The aggregator is unchanged: hosted NIM, full-size
+Super VL.
+
+| Key | Quant | Size | Port | Used as |
+|---|---|---|---|---|
+| `supervl` | Q8_0 (no Q8_K_XL exists for this model), from `ggml-org` | 133.7 GB, 3 files | 8082 | fallback 3 |
+| `ultra` | UD-Q8_K_XL, from `unsloth` (plain Q8_0 is 584.3 GB) | 594.5 GB, 14 shards | 8083 | reference in `moa.presets.local-q8` |
+| `glm` | Q8_0 + F16 projector, from `unsloth` | 342.1 GB, 8 shards + 1 | 8084 | reference in `moa.presets.local-q8` |
+
+All three together are about 1,070 GB of files, so they need a rented multi-GPU server, not a
+laptop. Sizes and sha256 come from the Hugging Face tree API (2026-10-21), each repo pinned to one
+commit; the fetch script checks free disk first, then size, GGUF magic and sha256. One tunnel per
+model, local and remote port equal:
+
+```bash
+ssh -N -L 8082:127.0.0.1:8082 -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 <user>@<big-box>
+```
+
+What is **not** verified: none of this has run against a real `llama-server`. `glm` needs a
+llama.cpp build with its architecture, which Unsloth's page shows only on their branch
+`glm5next/upstream`. Ultra's GGUFs have no MTP support (Unsloth); `supervl --spec mtp` is
+untested. What Hermes does when a MoA reference refuses the connection is undocumented, which is
+why the local preset is opt-in. The Hermes-side steps are in the `q8-local` skill.
+
+### Local Qwen3.8-27B (fallback 4)
 
 Qwen3.8-27B at Q8_0 is 28.6 GB, so it runs on a bigger machine, not the 8 GB laptop.
 On that machine: `bash scripts/qwen-local-fetch.sh` (four files from `ggml-org/Qwen3.8-27B-GGUF`,
