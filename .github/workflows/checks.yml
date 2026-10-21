@@ -147,7 +147,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import os, re, tomllib, yaml
+          import json, os, re, tomllib, yaml
           d = yaml.safe_load(open("configs/hermes/config.yaml"))
 
           providers = d["providers"]
@@ -554,6 +554,38 @@ jobs:
               assert pagg_matched, \
                   f"moa.presets.{pname}: no compression.model_thresholds key matches the aggregator " \
                   f"({pagg['model']}) -- it is the acting model on that preset's turns"
+
+          # THE CODER PRESET (added 2026-10-21, on request). z-ai/glm-5.3 on NIM is the acting
+          # model of the opt-in moa.presets.coder preset and of nothing else, and Nemotron 3
+          # Ultra is its only reference. Four things go wrong here without an error:
+          #   1. GLM-5.3 leaks into a slot that should stay on the parent's model (delegation,
+          #      an auxiliary, a fallback, the default MoA preset) and spends the shared ~40 RPM
+          #      bucket on a model nobody chose for that role.
+          #   2. The coder preset quietly becomes the default, so every turn runs on GLM.
+          #   3. The reviewer drifts from the top Nemotron (Ultra) to something else.
+          #   4. GLM-5.3 is routed but is not listed under providers.nvidia-nim.models.
+          coder = (moa.get("presets") or {}).get("coder")
+          if coder:
+              CODER = ("custom:nvidia-nim", "z-ai/glm-5.3")
+              ULTRA = ("custom:nvidia-nim", "nvidia/nemotron-3-ultra-550b-a55b")
+              assert pm(coder.get("aggregator") or {}) == CODER, \
+                  f"moa.presets.coder aggregator is {pm(coder.get('aggregator') or {})}, expected {CODER}"
+              assert [pm(r) for r in coder.get("reference_models") or []] == [ULTRA], \
+                  "moa.presets.coder must have Nemotron 3 Ultra as its only reference"
+              assert "z-ai/glm-5.3" in (providers["nvidia-nim"].get("models") or []), \
+                  "z-ai/glm-5.3 is routed by moa.presets.coder but not listed under providers.nvidia-nim.models"
+              assert moa_preset_name != "coder", \
+                  "moa.default_preset is coder: the opt-in coder preset must not be the default"
+              assert pm(flat_agg) != CODER, \
+                  "the flat moa.aggregator is the coder model: GLM-5.3 must stay opt-in"
+              rest = {k: v for k, v in d.items() if k not in ("providers", "moa")}
+              assert "z-ai/glm-5.3" not in json.dumps(rest).replace("z-ai/glm-5.3-flash", ""), \
+                  "z-ai/glm-5.3 appears outside providers: and moa:. It is the coder preset's model only"
+              for pname, pre in (moa.get("presets") or {}).items():
+                  if pname == "coder":
+                      continue
+                  used = [pm(pre.get("aggregator") or {})] + [pm(r) for r in pre.get("reference_models") or []]
+                  assert CODER not in used, f"moa.presets.{pname} routes z-ai/glm-5.3; only the coder preset may"
 
           # Rotating a credential pool discards the provider-side prompt cache, and
           # Kimi-K3 carries a large always-thinking prefix. round_robin would pay
