@@ -59,6 +59,8 @@
 #   opt-in refs llama.cpp      nemotron-3-ultra-550b-a55b-q8 (UD-Q8_K_XL) and glm-5.3-flash-q8 (Q8_0),
 #                              tunnels 8083 and 8084: the moa.presets.local-q8 preset only; the
 #                              default preset keeps the hosted copies
+#   opt-in slot llama.cpp      glm-5.3-flash-abliterated-q5 (huihui-ai GGUF, UD-Q5_K_XL), tunnel 8085:
+#                              reachable only by /model; in no preset, no fallback, no tier
 #   floor       your laptop    Hermes-3-Llama-3.2-3B-abliterated:Q8_0 (Ollama)
 #                              last link in fallback_providers, plus the five light
 #                              auxiliary slots (title, approval, mcp, skills_hub,
@@ -461,6 +463,35 @@ providers:
     # The model's own window is 1,048,576; this is what the serve script asks for.
     context_length: 131072
 
+  llamacpp-glm-abl-q5:
+    name: "llama.cpp (GLM-5.3-Flash abliterated, UD-Q5_K_XL, over an SSH tunnel)"
+    # OPT-IN SLOT (2026-10-21, on request). Reached only by
+    # `/model custom:llamacpp-glm-abl-q5:glm-5.3-flash-abliterated-q5`. It is in NO preset, NO
+    # fallback chain and NO tier, and CI keeps it that way. It cannot run on NIM: NIM serves
+    # NVIDIA's catalog only, so this is a local server on a box you control.
+    #     ssh -N -L 8085:127.0.0.1:8085 <user>@<big-box>
+    # Run on the big box: scripts/q8-local-fetch.sh glmabl, then scripts/q8-local-serve.sh glmabl.
+    #
+    # WHAT IT IS: huihui-ai/Huihui-GLM-5.3-Flash-abliterated-GGUF at c43a994637c1, UD-Q5_K_XL in
+    # 6 shards (240.3 GB) plus mmproj-model-bf16.gguf (1.16 GB). Refusal removal ("abliteration")
+    # of layers 15-35; the experts are untouched. Huihui calls the method crude and proof of
+    # concept. NO coding benchmark exists for it, and no fidelity measurement against the stock
+    # model. Unsloth's own numbers for the STOCK UD-Q5_K_XL are 94.35% top-1 token agreement
+    # with BF16 (mean KLD 0.027); that does not transfer to this checkpoint.
+    #
+    # WHY A SEPARATE SLOT: it is a second, labelled option next to the stock model, never a
+    # replacement for it. Its output is safety-unfiltered; treat it as untrusted. Needs the same
+    # GLM-5.3-Flash-capable llama.cpp as llamacpp-glm-q8. Not run by the author.
+    api: http://127.0.0.1:8085/v1
+    api_key: "no-key-required"
+    transport: chat_completions
+    default_model: glm-5.3-flash-abliterated-q5
+    models:
+      - glm-5.3-flash-abliterated-q5
+    discover_models: false
+    # The model's own window is 1,048,576; this is what the serve script asks for.
+    context_length: 131072
+
   anthropic-direct:
     name: "Anthropic (OpenAI-compatible endpoint)"
     #
@@ -804,6 +835,7 @@ web:
 #   /model custom:llamacpp-qwen:qwen3.8-27b-q8                                                (fallback 4; needs the tunnel on 8081)
 #   /model custom:llamacpp-ultra-q8:nemotron-3-ultra-550b-a55b-q8                             (opt-in MoA reference; tunnel on 8083)
 #   /model custom:llamacpp-glm-q8:glm-5.3-flash-q8                                            (opt-in MoA reference; tunnel on 8084)
+#   /model custom:llamacpp-glm-abl-q5:glm-5.3-flash-abliterated-q5                            (opt-in slot, /model only; tunnel on 8085)
 #   /model custom:or-fallback:qwen/qwen3.8-27b                                                (heavy aux, hosted copy)
 #   /model custom:or-fallback:z-ai/glm-5.3-flash                                              (MoA reference 1, fallback 1)
 #   /model custom:hf-fallback:nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4   (fallback 2)

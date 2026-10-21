@@ -27,11 +27,14 @@ REPO = SCRIPTS.parent
 FETCH = SCRIPTS / "q8-local-fetch.sh"
 SERVE = SCRIPTS / "q8-local-serve.sh"
 
-MODELS = ("supervl", "ultra", "glm")
-PROVIDER = {"supervl": "llamacpp-supervl-q8", "ultra": "llamacpp-ultra-q8", "glm": "llamacpp-glm-q8"}
+MODELS = ("supervl", "ultra", "glm")      # what `fetch all` means
+OPT_IN = ("glmabl",)                       # fetched and served by name only; never part of `all`
+ALL_KEYS = MODELS + OPT_IN
+PROVIDER = {"supervl": "llamacpp-supervl-q8", "ultra": "llamacpp-ultra-q8", "glm": "llamacpp-glm-q8",
+            "glmabl": "llamacpp-glm-abl-q5"}
 # sizes summed from the Hugging Face tree API, 2026-10-21
-TOTAL_BYTES = {"supervl": 133716911008, "ultra": 594513314336, "glm": 342110013504}
-FILE_COUNT = {"supervl": 3, "ultra": 14, "glm": 9}
+TOTAL_BYTES = {"supervl": 133716911008, "ultra": 594513314336, "glm": 342110013504, "glmabl": 241470097952}
+FILE_COUNT = {"supervl": 3, "ultra": 14, "glm": 9, "glmabl": 7}
 
 
 def run(cmd, env=None, cwd=None):
@@ -118,6 +121,16 @@ class FetchTests(unittest.TestCase):
         self.assertEqual(code, 0, out + err)
         for key in MODELS:
             self.assertTrue((self.base / key / "a.gguf").is_file(), key)
+        for key in OPT_IN:
+            self.assertFalse((self.base / key).exists(), f"{key} is opt-in: `all` must not fetch it")
+
+    def test_the_opt_in_model_is_fetched_by_name_from_its_own_repo(self):
+        code, out, err = run([FETCH, "glmabl"], self.env())
+        self.assertEqual(code, 0, out + err)
+        repo = re.search(r'^REPO_glmabl="([^"]+)"', FETCH.read_text(), re.M).group(1)
+        self.assertEqual(repo, "huihui-ai/Huihui-GLM-5.3-Flash-abliterated-GGUF")
+        self.assertIn(f"huggingface.co/{repo}/", self.log.read_text())
+        self.assertTrue((self.base / "glmabl" / "a.gguf").is_file())
 
     def test_check_never_downloads(self):
         code, out, err = run([FETCH, "ultra", "--check"], self.env())
@@ -210,7 +223,7 @@ class FetchTests(unittest.TestCase):
     # ---- the shipped manifests ----
     def test_the_real_manifests_are_complete_and_well_formed(self):
         text = FETCH.read_text()
-        for key in MODELS:
+        for key in ALL_KEYS:
             self.assertTrue(re.search(rf'^REV_{key}="[0-9a-f]{{40}}"', text, re.M), f"{key}: REV must be a full commit sha")
             rows = real_manifest(key)
             self.assertEqual(len(rows), FILE_COUNT[key], key)
@@ -230,6 +243,11 @@ class FetchTests(unittest.TestCase):
         want = [f"GLM-5.3-Flash-Q8_0-{i:05d}-of-00008.gguf" for i in range(1, 9)] + ["mmproj-F16.gguf"]
         self.assertEqual(names, want)
 
+    def test_glmabl_is_six_q5_k_xl_shards_and_the_bf16_projector(self):
+        names = [r[0].rsplit("/", 1)[-1] for r in real_manifest("glmabl")]
+        want = [f"GLM-5.3-Flash-UD-Q5_K_XL-{i:05d}-of-00006.gguf" for i in range(1, 7)] + ["mmproj-model-bf16.gguf"]
+        self.assertEqual(names, want)
+
     def test_supervl_is_the_model_its_projector_and_its_mtp_head(self):
         names = sorted(r[0] for r in real_manifest("supervl"))
         self.assertEqual(names, sorted([
@@ -246,7 +264,7 @@ class ServeTests(unittest.TestCase):
         self.bin.mkdir()
         self.rec = self.tmp / "server.args"
         # lay each model's files out exactly as the fetch script's manifest names them
-        for key in MODELS:
+        for key in ALL_KEYS:
             d = self.base / key
             d.mkdir(parents=True)
             for remote, _, _ in real_manifest(key):
@@ -273,7 +291,7 @@ EOF
 
     def test_the_files_the_fetch_script_ships_are_exactly_enough_to_serve_every_model(self):
         # ties the two scripts together: a renamed file in one and not the other fails here
-        for key in MODELS:
+        for key in ALL_KEYS:
             code, out, err = run([SERVE, key, "--dry-run"], self.env())
             self.assertEqual(code, 0, f"{key}: {out}{err}")
 
@@ -305,15 +323,31 @@ EOF
         self.assertIn("--alias glm-5.3-flash-q8", out)
         self.assertIn("--port 8084", out)
 
-    def test_the_three_servers_never_share_a_port_or_an_alias(self):
+    def test_glmabl_command_has_its_bf16_projector_its_six_shards_and_its_own_port(self):
+        code, out, err = run([SERVE, "glmabl", "--dry-run"], self.env())
+        self.assertEqual(code, 0, out + err)
+        self.assertIn("--mmproj " + str(self.d("glmabl") / "mmproj-model-bf16.gguf"), out)
+        self.assertIn("-m " + str(self.d("glmabl") / "GLM-5.3-Flash-UD-Q5_K_XL-00001-of-00006.gguf"), out)
+        self.assertIn("--alias glm-5.3-flash-abliterated-q5", out)
+        self.assertIn("--port 8085", out)
+        self.assertIn("--host 127.0.0.1", out)
+
+    def test_glmabl_missing_last_shard_is_caught(self):
+        (self.d("glmabl") / "GLM-5.3-Flash-UD-Q5_K_XL-00006-of-00006.gguf").unlink()
+        code, out, err = run([SERVE, "glmabl", "--dry-run"], self.env())
+        self.assertNotEqual(code, 0)
+        self.assertIn("00006-of-00006", err)
+        self.assertIn("q8-local-fetch.sh glmabl", err)
+
+    def test_the_servers_never_share_a_port_or_an_alias(self):
         seen = {}
-        for key in MODELS:
+        for key in ALL_KEYS:
             code, out, err = run([SERVE, key, "--print"], self.env())
             self.assertEqual(code, 0, out + err)
             kv = dict(l.split("=", 1) for l in out.splitlines())
             seen[key] = kv
-        self.assertEqual(len({v["PORT"] for v in seen.values()}), 3)
-        self.assertEqual(len({v["ALIAS"] for v in seen.values()}), 3)
+        self.assertEqual(len({v["PORT"] for v in seen.values()}), len(ALL_KEYS))
+        self.assertEqual(len({v["ALIAS"] for v in seen.values()}), len(ALL_KEYS))
         self.assertNotIn("8080", {v["PORT"] for v in seen.values()}, "8080 is the Qwen server's remote port")
         self.assertNotIn("8081", {v["PORT"] for v in seen.values()})
 
@@ -325,7 +359,7 @@ EOF
         self.assertIn("--spec-draft-n-max 3", out)
 
     def test_mtp_is_refused_for_the_models_that_have_none_wired(self):
-        for key in ("ultra", "glm"):
+        for key in ("ultra", "glm", "glmabl"):
             code, out, err = run([SERVE, key, "--dry-run", "--spec", "mtp"], self.env())
             self.assertEqual(code, 2, key)
             self.assertIn("only wired for supervl", err)
@@ -336,7 +370,7 @@ EOF
         self.assertIn("mtp or none", err)
 
     def test_a_non_loopback_host_is_refused_for_every_model(self):
-        for key in MODELS:
+        for key in ALL_KEYS:
             for host in ("0.0.0.0", "192.168.1.5", "spark.local"):
                 code, out, err = run([SERVE, key, "--dry-run"], self.env(Q8_HOST=host))
                 self.assertEqual(code, 2, f"{key} {host}")
@@ -439,7 +473,7 @@ class ConfigAgreesWithScripts(unittest.TestCase):
         return dict(l.split("=", 1) for l in out.splitlines())
 
     def test_alias_context_and_port_match_each_provider(self):
-        for key in MODELS:
+        for key in ALL_KEYS:
             kv = self.printed(key)
             prov = self.cfg["providers"][PROVIDER[key]]
             self.assertEqual(kv["ALIAS"], prov["default_model"], key)
@@ -457,7 +491,7 @@ class ConfigAgreesWithScripts(unittest.TestCase):
 
     def test_supervl_is_exactly_one_fallback_link_and_the_others_are_none(self):
         chain = self.cfg["fallback_providers"]
-        for key in MODELS:
+        for key in ALL_KEYS:
             prov = self.cfg["providers"][PROVIDER[key]]
             hits = [f for f in chain if f.get("base_url") == prov["api"]]
             if key == "supervl":
@@ -493,8 +527,22 @@ class ConfigAgreesWithScripts(unittest.TestCase):
         for name, pre in moa["presets"].items():
             self.assertEqual({k: pre["aggregator"][k] for k in want}, want, f"preset {name}")
 
+    def test_the_abliterated_slot_is_reachable_only_by_model_switch(self):
+        # opt-in means: defined under providers:, listed nowhere else. A refusal-removed model
+        # must never become a parent, fallback, auxiliary, delegate or MoA member by accident.
+        import json
+        rest = {k: v for k, v in self.cfg.items() if k != "providers"}
+        blob = json.dumps(rest)
+        for needle in ("llamacpp-glm-abl-q5", "glm-5.3-flash-abliterated-q5", "127.0.0.1:8085"):
+            self.assertNotIn(needle, blob, f"{needle} appears outside providers:")
+        for name, prov in self.cfg["providers"].items():
+            if name != "llamacpp-glm-abl-q5":
+                self.assertNotIn("glm-5.3-flash-abliterated-q5", prov.get("models", []), f"listed under {name}")
+        self.assertFalse(self.cfg["providers"]["nvidia-nim"].get("models", []).count("glm-5.3-flash-abliterated-q5"),
+                         "NIM serves NVIDIA's catalog only; this model cannot be on it")
+
     def test_each_tunnels_remote_port_is_documented_in_the_config(self):
-        for key in MODELS:
+        for key in ALL_KEYS:
             port = self.printed(key)["PORT"]
             self.assertIn(f"ssh -N -L {port}:127.0.0.1:{port}", self.cfg_text)
 

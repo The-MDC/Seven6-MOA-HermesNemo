@@ -22,6 +22,7 @@ work; your job is to run them on the right machine and report what they print.
 | `supervl` | Nemotron 3.5 Super VL 120B, Q8_0 (there is no Q8_K_XL) | 3 | 133.7 GB | 8082 | fallback 3, vision kept |
 | `ultra` | Nemotron 3 Ultra 550B, UD-Q8_K_XL, text only | 14 shards | 594.5 GB | 8083 | opt-in MoA reference |
 | `glm` | GLM-5.3-Flash, Q8_0 + F16 projector | 8 shards + 1 | 342.1 GB | 8084 | opt-in MoA reference |
+| `glmabl` | huihui-ai abliterated GLM-5.3-Flash, UD-Q5_K_XL + BF16 projector (fetch by name; `all` skips it) | 6 shards + 1 | 241.5 GB | 8085 | `/model` switch only, never a tier |
 
 The aggregator is NOT any of these. It stays on hosted NIM, full size. Do not move it.
 
