@@ -8,6 +8,7 @@
 #   bash scripts/q8-local-fetch.sh supervl          download what is missing, then verify
 #   bash scripts/q8-local-fetch.sh ultra --check    verify only; downloads nothing
 #   bash scripts/q8-local-fetch.sh all              all three, one after another
+#   bash scripts/q8-local-fetch.sh glmabl           the opt-in abliterated GLM at Q5 (NOT part of `all`)
 #   Q8_DIR=/data/q8 bash scripts/q8-local-fetch.sh glm
 #
 # WHAT EACH ONE IS (every size and sha256 below was read from the Hugging Face tree API
@@ -22,8 +23,17 @@
 #   glm      unsloth/GLM-5.3-Flash-GGUF                                   342.1 GB  9 files
 #            Q8_0 in 8 shards (341.0 GB) plus the F16 vision projector. Needs a llama.cpp
 #            build that has the GLM-5.3-Flash architecture -- see scripts/q8-local-serve.sh.
+#   glmabl   huihui-ai/Huihui-GLM-5.3-Flash-abliterated-GGUF               241.5 GB  7 files
+#            OPT-IN, 2026-10-21, on request, and NOT part of `all`. GLM-5.3-Flash with refusals
+#            removed (abliteration of layers 15-35 only; the experts are untouched), as
+#            UD-Q5_K_XL in 6 shards (240.3 GB) plus the bf16 vision projector (1.16 GB). It is
+#            the same Unsloth quant ladder as `glm`, from a one-person fine-tune: no coding
+#            benchmark exists for it, so it is a separate slot, never a replacement for the stock
+#            model. It is not the Q8+ tier; the key lives in this script because the fetch and
+#            serve machinery is identical. Needs the same GLM-5.3-Flash-capable llama.cpp as `glm`.
 #
-# Total for all three: about 1,070 GB. The script checks free disk space before it starts
+# Total for the three Q8+ models: about 1,070 GB; `glmabl` adds 241.5 GB on top when you ask
+# for it by name. The script checks free disk space before it starts
 # and refuses if the remaining downloads will not fit (Q8_SKIP_DISK_CHECK=1 overrides).
 #
 # The files are public: no Hugging Face token is needed. Needs only curl, sha256sum, stat,
@@ -42,6 +52,8 @@ REPO_ultra="unsloth/NVIDIA-Nemotron-3-Ultra-550B-A55B-GGUF"
 REV_ultra="2fb7d5b3f4eae7aedb18b4839b6a6300111e46f6"
 REPO_glm="unsloth/GLM-5.3-Flash-GGUF"
 REV_glm="a38483c8cd5df544f53d70fb281afe97369d5ab6"
+REPO_glmabl="huihui-ai/Huihui-GLM-5.3-Flash-abliterated-GGUF"
+REV_glmabl="c43a994637c10f5c376b7a471b3afc7663f80b9b"
 
 # remote path|bytes|sha256     (the local file is the basename, in $DIR/<model>/)
 FILES_supervl=(
