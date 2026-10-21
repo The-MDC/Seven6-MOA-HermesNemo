@@ -119,7 +119,7 @@ classification, tool selection, titles, curation.
 
 The local 49B GGUF (~58.68 GB) was the parent from 2026-09-28 to 2026-10-19 and
 fallback 2 after that. It was removed on 2026-10-19: the target machine has 8 GB of
-RAM, and no hosted endpoint serves that model. The NIM fallback (now fallback 4) is
+RAM, and no hosted endpoint serves that model. The NIM fallback (now fallback 5) is
 `nvidia/nemotron-3.5-lightning-30b-a3b` on NVIDIA NIM (§3), which needs no download.
 
 If you only want Hermes conversing, you can stop after 2.1 and §3: the parent is
@@ -244,9 +244,10 @@ moa ref 4   nvidia-nim    nvidia/nemotron-3-nano-omni-30b-a3b-reasoning   API on
 moa ref 5   nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b    API only; reference, research, advisor, reviewer
 fallback 1  or-fallback   z-ai/glm-5.3-flash                   API only; the 429 escape
 fallback 2  hf-fallback   nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4   API only; the primary's NVFP4 build via HF's router (needs HF_TOKEN)
-fallback 3  llamacpp-qwen  qwen3.8-27b-q8                      local llama.cpp over an SSH tunnel (127.0.0.1:8081)
-fallback 4  nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     API only; same bucket as the parent (model-level failover, not a 429 escape)
-fallback 5  local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0
+fallback 3  llamacpp-supervl-q8  nemotron-3.5-super-vl-120b-a12b-q8   local llama.cpp, the primary's weights at Q8_0, over an SSH tunnel (127.0.0.1:8082)
+fallback 4  llamacpp-qwen  qwen3.8-27b-q8                      local llama.cpp over an SSH tunnel (127.0.0.1:8081)
+fallback 5  nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     API only; same bucket as the parent (model-level failover, not a 429 escape)
+fallback 6  local         Hermes-3-Llama-3.2-3B-abliterated:Q8_0
                           last resort + 5 light aux slots
 unrouted    anthropic-direct  claude-sonnet-5    configured, intact, via /model only
 ```

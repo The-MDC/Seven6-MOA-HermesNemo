@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Download Qwen3.8-27B (Q8_0) and its three companion files for the llama.cpp server
-# behind fallback 3 (configs/hermes/config.yaml -> providers.llamacpp-qwen).
+# behind fallback 4 (configs/hermes/config.yaml -> providers.llamacpp-qwen).
 #
 # Run this on the BIG box that will serve the model, not on the 8 GB laptop.
 #

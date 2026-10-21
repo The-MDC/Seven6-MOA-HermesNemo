@@ -115,10 +115,14 @@ jobs:
       # PowerShell glue -- launcher, autostart, update wrapper, profile apply, and the
       # drift section of hermes-verify -- against a fake `hermes` on PATH.
       #
-      # The local Qwen3.8-27B (fallback 3) has the same shape of risk: scripts that
+      # The local Qwen3.8-27B (fallback 4) has the same shape of risk: scripts that
       # pull 34 GB and start a CUDA server cannot run in CI, so test_qwen_local.py runs
       # them against a fake curl and a fake llama-server, and requires the serve
       # script's alias and window to equal providers.llamacpp-qwen in the config.
+      #
+      # The three Q8+ servers (Super VL, Ultra, GLM; 1.07 TB of files) are the same shape of
+      # risk and get the same treatment in test_q8_local.py: a fake curl and a fake
+      # llama-server, and each model's alias, window and port compared with its provider.
       #
       # Windows-only calls (Register-ScheduledTask, the Startup folder, User-scope
       # environment variables) cannot run here and are NOT covered: on the box,
@@ -130,6 +134,7 @@ jobs:
           python3 -c 'import yaml' || python3 -m pip install --quiet pyyaml
           python3 -I scripts/test_config_drift.py
           python3 -I scripts/test_qwen_local.py
+          python3 -I scripts/test_q8_local.py
           pwsh -NoLogo -NoProfile -File scripts/test-hermes-ps.ps1
 
       # The Hermes config is data, not code: nothing in this repo executes it, so a
@@ -518,6 +523,37 @@ jobs:
           assert comp.get("threshold", 0.50) < agg_threshold <= 0.80, \
               f"the MoA aggregator's compaction threshold ({agg_threshold}) must sit above the " \
               f"global default and at or below 0.80, for the same reasons as the parent's"
+
+          # EVERY PRESET, not only the default one (added 2026-10-21 with the opt-in local-q8
+          # preset). Everything above guards moa.presets.<default_preset>; a second preset
+          # that nobody selects yet was checked by nothing, so a typo'd id or an aggregator
+          # that is also a reference would first show up the day someone switched to it. The
+          # rules are the default preset's: an aggregator, no repeats, the aggregator is not
+          # a reference, and every id is listed under a provider that exists.
+          for pname, pre in (moa.get("presets") or {}).items():
+              if pname == moa_preset_name:
+                  continue
+              pagg = pre.get("aggregator") or {}
+              assert pagg.get("model"), \
+                  f"moa.presets.{pname} has no aggregator -- a preset without one has no acting model"
+              prefs = [pm(r) for r in (pre.get("reference_models") or [])]
+              assert prefs, f"moa.presets.{pname} has no reference_models"
+              assert len(set(prefs)) == len(prefs), \
+                  f"moa.presets.{pname} references repeat a (provider, model) pair: {prefs}"
+              assert pm(pagg) not in prefs, \
+                  f"moa.presets.{pname}: aggregator {pm(pagg)} is also a reference"
+              for who, (pv, mid) in [("aggregator", pm(pagg))] + [("reference", r_) for r_ in prefs]:
+                  if (pv or "").startswith("custom:"):
+                      pn = pv.split(":", 1)[1]
+                      assert pn in providers, \
+                          f"moa.presets.{pname} {who} names provider {pv!r}, which is not defined in providers:"
+                      assert mid in (providers[pn].get("models") or []), \
+                          f"moa.presets.{pname} {who} {mid!r} is not in providers.{pn}.models " \
+                          f"-- discover_models:false means a wrong id silently resolves to the main model"
+              pagg_matched = {k: v for k, v in thresholds.items() if k.lower() in pagg["model"].lower()}
+              assert pagg_matched, \
+                  f"moa.presets.{pname}: no compression.model_thresholds key matches the aggregator " \
+                  f"({pagg['model']}) -- it is the acting model on that preset's turns"
 
           # Rotating a credential pool discards the provider-side prompt cache, and
           # Kimi-K3 carries a large always-thinking prefix. round_robin would pay

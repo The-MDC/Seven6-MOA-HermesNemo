@@ -303,6 +303,28 @@ HTTPServer(("127.0.0.1", port), H).serve_forever()
         Check ($r.Output -match '--alias qwen3\.8-27b-q8') 'the FAIL tells you the flag that fixes it' $r.Output
     } finally { if (-not $srv.HasExited) { $srv.Kill() } }
 
+    # The two opt-in MoA references (Ultra on 8083, GLM on 8084) are only used by
+    # moa.presets.local-q8, so a closed tunnel is the DEFAULT state: info, never a warning.
+    # A server that IS up on the port but serves the wrong alias is still a FAIL.
+    function New-PortHome([string]$name, [string]$from, [int]$port) {
+        $h = New-Home $name
+        Set-Content (Join-Path $h 'config.yaml') ((Get-Content $golden -Raw).Replace("api: http://127.0.0.1:$from/v1", "api: http://127.0.0.1:$port/v1"))
+        return $h
+    }
+    $port = Get-FreePort
+    $h = New-PortHome 'optin-down' '8083' $port
+    $r = Invoke-Child -ArgList @('-File', $verify, '-Stage', 'a', '-Deep') -Env @{ HERMES_HOME = $h }
+    Check ($r.Output -match 'llamacpp-ultra-q8 is not running' -and $r.Output -notmatch "warn\s+nothing listening on 127\.0\.0\.1:$port") 'opt-in reference, tunnel closed -> info, not a warning' $r.Output
+
+    $port = Get-FreePort
+    $srv = Start-FakeLlama $port 'some-other-model'
+    try {
+        $h = New-PortHome 'optin-wrong' '8084' $port
+        $r = Invoke-Child -ArgList @('-File', $verify, '-Stage', 'a', '-Deep') -Env @{ HERMES_HOME = $h }
+        Check ($r.Output -match "FAIL\s+llamacpp-glm-q8 answers but lists \[some-other-model\], not 'glm-5\.3-flash-q8'") 'opt-in reference up with the WRONG alias -> FAIL naming both' $r.Output
+        Check ($r.Output -match '--alias glm-5\.3-flash-q8 \(scripts/q8-local-serve\.sh glm\)') 'the FAIL names the script and model that fix it' $r.Output
+    } finally { if (-not $srv.HasExited) { $srv.Kill() } }
+
     # ------------------------------------------------------------ update wrapper
     Write-Host "`nhermes-update-safe.ps1" -ForegroundColor Cyan
     $upd = Join-Path $Scripts 'hermes-update-safe.ps1'

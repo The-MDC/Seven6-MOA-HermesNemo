@@ -42,9 +42,10 @@ moa ref 4   custom:nvidia-nim    nvidia/nemotron-3-nano-omni-30b-a3b-reasoning  
 moa ref 5   custom:nvidia-nim    nvidia/nemotron-3-ultra-550b-a55b         reference, research, advisor, reviewer
 fallback 1  custom:or-fallback   z-ai/glm-5.3-flash                        429 escape, different bucket
 fallback 2  custom:hf-fallback   nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4   HF router (Baseten), the primary's NVFP4 build; third bucket (2026-10-21)
-fallback 3  custom:llamacpp-qwen qwen3.8-27b-q8                            Qwen3.8-27B Q8_0 via SSH tunnel 127.0.0.1:8081 (2026-10-21)
-fallback 4  custom:nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     model-level failover; same bucket as the parent (no 429 escape)
-fallback 5  custom:local         hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
+fallback 3  custom:llamacpp-supervl-q8 nemotron-3.5-super-vl-120b-a12b-q8   Super VL Q8_0 via SSH tunnel 127.0.0.1:8082 (2026-10-21)
+fallback 4  custom:llamacpp-qwen qwen3.8-27b-q8                            Qwen3.8-27B Q8_0 via SSH tunnel 127.0.0.1:8081 (2026-10-21)
+fallback 5  custom:nvidia-nim    nvidia/nemotron-3.5-lightning-30b-a3b     model-level failover; same bucket as the parent (no 429 escape)
+fallback 6  custom:local         hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
                                   last resort + the 5 light aux slots
 unrouted    custom:anthropic-direct  claude-sonnet-5, Anthropic's OpenAI-compat endpoint: in providers:
                                   wired into NOTHING; /model custom:anthropic-direct:claude-sonnet-5
@@ -81,7 +82,7 @@ What changed on 2026-10-19, and what it cost:
   the MoA aggregator until 2026-10-19, then fallback 2. It was removed the same day: the
   target machine has 8 GB of RAM, and no hosted endpoint serves it (NIM, OpenRouter and
   DeepInfra catalogs and Hugging Face inference providers checked 2026-10-19). The NIM fallback
-  (now fallback 4) is `nvidia/nemotron-3.5-lightning-30b-a3b` on NIM, on request. It shares the parent's bucket, so it answers
+  (now fallback 5) is `nvidia/nemotron-3.5-lightning-30b-a3b` on NIM, on request. It shares the parent's bucket, so it answers
   a failure of the parent MODEL, not a 429; fallbacks 1 and 2 (OpenRouter, then Hugging Face) are the 429 escape.
   Offline work now degrades to the 3B floor, and MoA needs NIM.
 - **Context length is unmeasured.** `providers.nvidia-nim.context_length` stays 131072.

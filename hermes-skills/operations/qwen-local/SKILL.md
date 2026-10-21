@@ -1,6 +1,6 @@
 ---
 name: qwen-local
-description: "Use this skill when asked to download, set up, start, check or troubleshoot the local Qwen3.8-27B Q8_0 model that backs fallback 3 (provider llamacpp-qwen): fetching its four GGUF files, starting llama-server, opening the SSH tunnel, or testing whether the local Qwen answers. It decides WHICH machine may do the download, because the model does not fit a small laptop. Triggers on: qwen local, qwen3.8, llamacpp-qwen, download qwen, GGUF, llama-server, mmproj, MTP, DFlash, fallback 3, tunnel, port 8081."
+description: "Use this skill when asked to download, set up, start, check or troubleshoot the local Qwen3.8-27B Q8_0 model that backs fallback 4 (provider llamacpp-qwen): fetching its four GGUF files, starting llama-server, opening the SSH tunnel, or testing whether the local Qwen answers. It decides WHICH machine may do the download, because the model does not fit a small laptop. Triggers on: qwen local, qwen3.8, llamacpp-qwen, download qwen, GGUF, llama-server, mmproj, MTP, DFlash, fallback 4, tunnel, port 8081."
 version: 1.0.0
 author: "Written for this Hermes build"
 license: "MIT"
@@ -12,9 +12,9 @@ metadata:
     related_skills: [local-desktop, hermes-orchestration]
 ---
 
-# The local Qwen3.8-27B (fallback 3)
+# The local Qwen3.8-27B (fallback 4)
 
-Qwen3.8-27B at Q8_0 is fallback 3, served by `llama-server` and reached at
+Qwen3.8-27B at Q8_0 is fallback 4, served by `llama-server` and reached at
 `http://127.0.0.1:8081/v1` through an SSH tunnel. Four files, about 34.4 GB, from
 `ggml-org/Qwen3.8-27B-GGUF`: the model, the vision projector (`mmproj`), the MTP head
 and the DFlash drafter. The repo's scripts do the work; your job is to run them on the
@@ -86,4 +86,4 @@ Needs the user's SSH key. Never type or ask for a password in the terminal.
 - Change routing in the repo's `configs/hermes/config.yaml` and apply it with
   `scripts/hermes-apply.ps1`, never by editing the installed file
   (see `hermes-orchestration`).
-- If the tunnel is down, fallback 3 is skipped and Hermes moves on. That is by design.
+- If the tunnel is down, fallback 4 is skipped and Hermes moves on. That is by design.
