@@ -108,6 +108,24 @@ jobs:
           }
           if ($bad) { exit 1 }
 
+      # The startup/update/model-change hardening is code that decides whether a changed
+      # Hermes install is still routed where this repo says. A parse check proves it is
+      # whole, not that it works, so the tests run it: the drift checker's 29 unit tests
+      # (each one feeds it a deliberately broken config and requires a failure), and the
+      # PowerShell glue -- launcher, autostart, update wrapper, profile apply, and the
+      # drift section of hermes-verify -- against a fake `hermes` on PATH.
+      #
+      # Windows-only calls (Register-ScheduledTask, the Startup folder, User-scope
+      # environment variables) cannot run here and are NOT covered: on the box,
+      # `hermes-dashboard-autostart.ps1 -Action Install -WhatIf` is that test.
+      - name: Hardening tests (drift checker + PowerShell glue)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -c 'import yaml' || python3 -m pip install --quiet pyyaml
+          python3 -I scripts/test_config_drift.py
+          pwsh -NoLogo -NoProfile -File scripts/test-hermes-ps.ps1
+
       # The Hermes config is data, not code: nothing in this repo executes it, so a
       # syntax error would surface only on the desktop that copies it into
       # ~/.hermes/config.yaml — where a malformed file makes Hermes fall back to its

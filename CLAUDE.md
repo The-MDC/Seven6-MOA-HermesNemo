@@ -116,8 +116,29 @@ node   scripts/port-skills-to-hermes.js           # re-port; prints `scrub: clea
 node   scripts/port-skills-to-hermes.js --check   # upstream drift, writes nothing
 bash   scripts/repo-doctor.sh                     # toolchain, hooks, egress
 node   scripts/gateway-doctor.js                 # sticky profile (exit 78), plugin symlink stubs
-pwsh -File scripts/hermes-verify.ps1              # the acceptance gate, on the box
+pwsh -File scripts/hermes-verify.ps1              # the acceptance gate, on the box; includes config drift
+python3 -I scripts/test_config_drift.py           # the drift checker's own tests
+pwsh -File scripts/test-hermes-ps.ps1             # the PowerShell glue's tests (Linux/macOS pwsh)
 ```
+
+### Keeping an install on the routing (startup, update, model change)
+
+The routing breaks quietly when something rewrites the installed config, so the repo
+checks the INSTALLED files, not just the repo copy:
+
+```bash
+pwsh -File scripts/hermes-verify.ps1                       # drift: root + every profile (seven6moa strict, others advisory)
+pwsh -File scripts/hermes-update-safe.ps1 -WhatIf          # update: stop, back up, update, drift check, restart
+pwsh -File scripts/hermes-dashboard-autostart.ps1          # Status (read-only); -Action Install pins the token + login task
+pwsh -File scripts/hermes-apply.ps1 -Profiles seven6moa   # opt-in: write the repo config into a NAMED profile (backup first)
+```
+
+`scripts/check-config-drift.py` is the engine. Exit 0 clean, 1 drift or a broken invariant
+(an `auto`/empty auxiliary slot, an unresolved `custom:` provider, a default model not
+listed under its provider, a key-shaped string), 2 unreadable -- never a pass. In
+`--profile` mode a key a profile does not set is inherited from the root, not drift.
+`hermes-update-safe.ps1` never applies the repo config for you and never restarts into
+drifted routing; `hermes-apply.ps1` skips profiles unless you name them.
 
 **A check that cannot fail is not a check, and one that cannot pass is worse.** This
 repo has shipped both: an assertion that hardcoded a retired model and kept passing,

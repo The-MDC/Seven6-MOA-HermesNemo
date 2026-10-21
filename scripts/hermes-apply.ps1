@@ -11,19 +11,34 @@
   from this repo before (docs/models/HANDOFF-NEXT-SESSION.md) and the deployed side
   may hold changes nobody wrote down.
 
+  Profiles are OPT-IN. By default only the root config is written. A profile's config
+  may differ from the root on purpose, and this script has no way to know which
+  differences are deliberate, so -Profiles <name,...> replaces the NAMED profile's
+  config.yaml with the repo copy (backed up first), and nothing else is touched.
+  Names are checked against the profiles that exist; an unknown name stops the run
+  before any file is written.
+
   Touches no .env and no credential. Keys are read by Hermes from
   $HERMES_HOME\.env at runtime and are none of this script's business.
 
 .EXAMPLE
   pwsh -File scripts/hermes-apply.ps1 -WhatIf   # show what would change
   pwsh -File scripts/hermes-apply.ps1
+  pwsh -File scripts/hermes-apply.ps1 -Profiles seven6moa -WhatIf
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(
-    [string]$HermesHome = $(if ($env:HERMES_HOME) { $env:HERMES_HOME }
-                            else { Join-Path $env:LOCALAPPDATA 'hermes' }),
-    [string]$CodexHome  = $(Join-Path $HOME '.codex')
+    [string]$HermesHome,
+    [string]$CodexHome  = $(Join-Path $HOME '.codex'),
+
+    # Named profiles (under <HermesHome>/profiles) to overwrite with the repo config.
+    # Default: none. Names are letters, digits, '.', '_' and '-' only.
+    [string[]]$Profiles = @()
 )
+
+. (Join-Path $PSScriptRoot 'hermes-common.ps1')
+if (-not $HermesHome) { $HermesHome = Get-HermesHomePath }
+$Profiles = @(Split-NameList $Profiles)   # -File delivers "a,b" as one string
 
 $ErrorActionPreference = 'Stop'
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -60,11 +75,31 @@ function Install-One {
     }
 }
 
-Write-Host "hermes home: $HermesHome"
-Write-Host "codex home:  $CodexHome`n"
+# Validate every requested profile BEFORE writing anything, so a typo cannot leave
+# the root installed and the profile skipped.
+$profileDirs = @()
+foreach ($name in $Profiles) {
+    if ($name -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$' -or $name -match '\.\.') {
+        throw "invalid profile name '$name' (letters, digits, '.', '_', '-' only)"
+    }
+    $dir = Join-Path (Join-Path $HermesHome 'profiles') $name
+    if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
+        $have = @(Get-ChildItem (Join-Path $HermesHome 'profiles') -Directory -ErrorAction SilentlyContinue | ForEach-Object Name)
+        throw "no such profile '$name' under $HermesHome\profiles (have: $(if ($have) { $have -join ', ' } else { 'none' }))"
+    }
+    $profileDirs += $dir
+}
 
-Install-One (Join-Path $repo 'configs\hermes\config.yaml') (Join-Path $HermesHome 'config.yaml')
-Install-One (Join-Path $repo 'configs\codex\config.toml')  (Join-Path $CodexHome  'config.toml')
+Write-Host "hermes home: $HermesHome"
+Write-Host "codex home:  $CodexHome"
+Write-Host "profiles:    $(if ($Profiles) { $Profiles -join ', ' } else { 'none (root config only)' })`n"
+
+$hermesCfg = Join-Path (Join-Path (Join-Path $repo 'configs') 'hermes') 'config.yaml'
+$codexCfg  = Join-Path (Join-Path (Join-Path $repo 'configs') 'codex')  'config.toml'
+
+Install-One $hermesCfg (Join-Path $HermesHome 'config.yaml')
+foreach ($dir in $profileDirs) { Install-One $hermesCfg (Join-Path $dir 'config.yaml') }
+Install-One $codexCfg (Join-Path $CodexHome 'config.toml')
 
 Write-Host @"
 
