@@ -217,6 +217,15 @@ providers:
       # HTTP 200 on 2026-10-20. A specialist, so it advises; it is NOT the
       # auxiliary.vision model, which stays pinned to the parent (see auxiliary).
       - nvidia/ising-calibration-1.5-31b
+      # CODER (2026-10-21, on request: "coding to be the GLM 5.3 with support or review by our
+      # top Nemo model"). Z.ai's GLM-5.3, hosted by NVIDIA. It is the ACTING model of the opt-in
+      # moa.presets.coder preset and of nothing else: not the parent, not a subagent, not an
+      # auxiliary, not a fallback. LIVE-VERIFIED only that GET /v1/models/z-ai/glm-5.3 (no key)
+      # returned HTTP 200 on 2026-10-21. NOT MEASURED: whether THIS key may call it, its context
+      # length, its tool calling, its rate cap. Run
+      #   NVIDIA_NIM_MODEL=z-ai/glm-5.3 bash scripts/nim-preflight.sh --nim-only
+      # before relying on it. The hosted NIM trial is for evaluation (NVIDIA API Trial Terms).
+      - z-ai/glm-5.3
     discover_models: false
     # nim-preflight.sh reports what the endpoint advertises. Set this to the number
     # it prints. The preflight defaults to the model above; NVIDIA_NIM_MODEL
@@ -791,6 +800,30 @@ moa:
     # WHAT IS NOT KNOWN: what Hermes does when a reference endpoint refuses the connection.
     # Its docs say only that a reference credential failure does not abort the turn. Close
     # the tunnel and run one MoA turn before depending on this preset.
+    # OPT-IN CODER (2026-10-21, on request: "coding to be the GLM 5.3 with support or review by
+    # our top Nemo model"). GLM-5.3 on NIM is the ACTING model: it writes the reply and runs
+    # every tool-loop iteration. Nemotron 3 Ultra, the top Nemotron, is the only reference.
+    #
+    # WHAT "SUPPORT" MEANS HERE: a MoA reference advises ONCE per user turn, BEFORE the
+    # aggregator answers. It does not read the finished code. For a review of the result, ask
+    # Ultra directly: `/model custom:nvidia-nim:nvidia/nemotron-3-ultra-550b-a55b`.
+    #
+    # COST: every GLM tool-loop step is one request from the shared ~40 RPM NIM bucket, plus
+    # one Ultra request per turn. Loses vision: GLM-5.3 here is used as text in, text out, and
+    # this preset has no image-capable model; switch back to default for screenshots.
+    #
+    # NOT THE DEFAULT. To use it, set moa.default_preset to coder AND copy this preset's
+    # reference_models and aggregator into the flat moa.reference_models / moa.aggregator
+    # (CI requires the flat keys to match the default preset). Not run by the author.
+    coder:
+      enabled: true
+      reference_models:
+        - provider: "custom:nvidia-nim"
+          model: nvidia/nemotron-3-ultra-550b-a55b
+          enabled: true
+      aggregator:
+        provider: "custom:nvidia-nim"
+        model: z-ai/glm-5.3
     local-q8:
       enabled: true
       reference_models:
@@ -865,6 +898,7 @@ web:
 #   /model custom:llamacpp-qwen:qwen3.8-27b-q8                                                (fallback 4; needs the tunnel on 8081)
 #   /model custom:llamacpp-ultra-q8:nemotron-3-ultra-550b-a55b-q8                             (opt-in MoA reference; tunnel on 8083)
 #   /model custom:llamacpp-glm-q8:glm-5.3-flash-q8                                            (opt-in MoA reference; tunnel on 8084)
+#   /model custom:nvidia-nim:z-ai/glm-5.3                                                     (the coder preset's acting model; moa.presets.coder)
 #   /model custom:llamacpp-glm-q5:glm-5.3-flash-q5                                            (THE CODER; tunnel on 8086)
 #   /model custom:llamacpp-glm-abl-q5:glm-5.3-flash-abliterated-q5                            (opt-in slot, /model only; tunnel on 8085)
 #   /model custom:or-fallback:qwen/qwen3.8-27b                                                (heavy aux, hosted copy)
@@ -1273,6 +1307,10 @@ compression:
     # it is still selectable with /model, where it would be the acting model and
     # would otherwise compact at the global 0.50. CI no longer requires this key.
     "nemotron-3-ultra": 0.70
+    # CODER AGGREGATOR: z-ai/glm-5.3 on NIM, the acting model of moa.presets.coder. Every
+    # compaction costs a request from the shared ~40 RPM bucket, the same reason as the
+    # parent's key above. Matched by substring, so it also covers z-ai/glm-5.3-flash.
+    "glm-5.3": 0.70
   target_ratio: 0.20
   tail_mode: lean
   protect_last_n: 20

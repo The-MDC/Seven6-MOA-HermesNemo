@@ -565,7 +565,20 @@ class ConfigAgreesWithScripts(unittest.TestCase):
         moa = self.cfg["moa"]
         self.assertEqual({k: moa["aggregator"][k] for k in want}, want)
         for name, pre in moa["presets"].items():
+            if name == "coder":
+                continue    # the one named exception, asserted below
             self.assertEqual({k: pre["aggregator"][k] for k in want}, want, f"preset {name}")
+
+    def test_the_coder_preset_is_the_only_one_not_on_super_vl_and_uses_ultra_as_its_only_reference(self):
+        pre = self.cfg["moa"]["presets"]["coder"]
+        self.assertEqual({k: pre["aggregator"][k] for k in ("provider", "model")},
+                         {"provider": "custom:nvidia-nim", "model": "z-ai/glm-5.3"})
+        self.assertEqual([(r["provider"], r["model"]) for r in pre["reference_models"]],
+                         [("custom:nvidia-nim", "nvidia/nemotron-3-ultra-550b-a55b")])
+        others = [n for n, p in self.cfg["moa"]["presets"].items()
+                  if p["aggregator"]["model"] != "nvidia/nemotron-3.5-super-vl-120b-a12b"]
+        self.assertEqual(others, ["coder"])
+        self.assertNotEqual(self.cfg["moa"]["default_preset"], "coder")
 
     def test_the_abliterated_slot_is_reachable_only_by_model_switch(self):
         # opt-in means: defined under providers:, listed nowhere else. A refusal-removed model

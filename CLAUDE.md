@@ -33,6 +33,7 @@ fallback 1  custom:or-fallback   z-ai/glm-5.3-flash                        429 e
 fallback 2  custom:hf-fallback   nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4   2026-10-21; HF router (Baseten), the primary's NVFP4 build; a third bucket
 fallback 3  custom:llamacpp-supervl-q8 nemotron-3.5-super-vl-120b-a12b-q8 (Q8_0, llama.cpp)   2026-10-21; SSH tunnel to 127.0.0.1:8082; skipped if down
 fallback 4  custom:llamacpp-qwen qwen3.8-27b-q8 (Qwen3.8-27B Q8_0, llama.cpp)   2026-10-21; SSH tunnel to 127.0.0.1:8081; skipped if the tunnel is down
+coder preset custom:nvidia-nim z-ai/glm-5.3 acts, nvidia/nemotron-3-ultra-550b-a55b advises   2026-10-21, opt-in moa.presets.coder; in no other slot
 coder       custom:llamacpp-glm-q5 glm-5.3-flash-q5 (Unsloth stock UD-Q5_K_XL; tunnel 8086)   THE coder choice (2026-10-21); /model switch only, in no preset, fallback or tier
 opt-in sw.  custom:llamacpp-glm-abl-q5 glm-5.3-flash-abliterated-q5 (huihui-ai UD-Q5_K_XL; tunnel 8085)   /model switch only; in no preset, fallback or tier
 heavy aux   custom:or-fallback   qwen/qwen3.8-27b                          compression, web_extract (hosted copy of the same model)
