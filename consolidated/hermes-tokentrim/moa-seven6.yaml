@@ -1,0 +1,77 @@
+moa:
+  # Panel consolidated 2026-10-16 from the retired tier profiles (union of their unique reference voices).
+  # Per-role temperatures follow NVIDIA's guidance for these models: advisors run in thinking mode at 0.6,
+  # the aggregator (Nemotron 3.5 Super VL) at its documented 1.0 / top_p 0.95 (set in `model:`).
+  reference_models:
+    # R1 nano-omni 30B-A3B reasoning (NIM): fast reasoning advisor.           [seven6moa, nim-subagents]
+    - provider: "custom:nvidia-nim"
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      enabled: true
+    # R2 Super 120B-A12B (NIM): strong reasoning advisor.                     [moa-aggregator, or-fallback]
+    - provider: "custom:nvidia-nim"
+      model: nvidia/nemotron-3-super-120b-a12b
+      enabled: true
+    # R3 qwen3.5-122b-a10b (OpenRouter): independent family and quota.        [seven6moa, every tier]
+    # STAGED OFF until a valid OpenRouter key is installed (set-openrouter-key.ps1 switches it on).
+    - provider: "custom:or-fallback"
+      model: qwen/qwen3.5-122b-a10b
+      enabled: false
+    # R4 qwen3.8-flash (OpenRouter): fast independent voice, staged OFF.      [or-fallback]
+    - provider: "custom:or-fallback"
+      model: qwen/qwen3.8-flash
+      enabled: false
+    # R5 GLM-5.3 (NIM): non-Nemotron family that runs on the NVIDIA key. Staged OFF (a MoA turn with it took 213 s vs ~55 s).
+    - provider: "custom:nvidia-nim"
+      model: z-ai/glm-5.3
+      enabled: false
+  aggregator:
+    provider: "custom:nvidia-nim"
+    model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  reference_temperature: 0.6
+  aggregator_temperature: 1.0
+  reference_timeout: 120
+  degraded_reference_policy: loud
+  fanout: user_turn
+  enabled: true
+  presets:
+    default:
+      reference_models:
+        - provider: "custom:nvidia-nim"
+          model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+          enabled: true
+        - provider: "custom:nvidia-nim"
+          model: nvidia/nemotron-3-super-120b-a12b
+          enabled: true
+        - provider: "custom:or-fallback"
+          model: qwen/qwen3.5-122b-a10b
+          enabled: false
+        - provider: "custom:or-fallback"
+          model: qwen/qwen3.8-flash
+          enabled: false
+        - provider: "custom:nvidia-nim"
+          model: z-ai/glm-5.3
+          enabled: false
+      aggregator:
+        provider: "custom:nvidia-nim"
+        model: nvidia/nemotron-3.5-super-vl-120b-a12b
+      reference_temperature: 0.6
+      aggregator_temperature: 1.0
+      reference_timeout: 120
+      degraded_reference_policy: loud
+      fanout: user_turn
+
+# ---------------------------------------------------------------------------
+# RESEARCH BROWSER
+#
+# SearXNG is the free half: self-hosted metasearch over 70+ engines, no API key,
+# no rate limit. It is SEARCH-ONLY — no extract, no crawl — so it is paired with
+# an extractor.
+#
+# Setting search_backend explicitly is load-bearing. Hermes' auto-detection walks
+# Firecrawl > Parallel > Tavily > Exa > SearXNG > Brave > DDGS, so merely having
+# FIRECRAWL_API_KEY in the environment silently wins over SearXNG and you never
+# find out your "free local search" is billing an API.
+#
+# Run one:  docker run -d -p 8888:8080 --name searxng searxng/searxng
+# Then:     SEARXNG_URL=http://127.0.0.1:8888   in ~/.hermes/.env
+# ---------------------------------------------------------------------------

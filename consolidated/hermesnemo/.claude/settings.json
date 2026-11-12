@@ -1,0 +1,83 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/before-submit-prompt.js\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/after-mcp-execution.js\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/post-edit-check.js\"",
+            "timeout": 150
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-bash-guard.js\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-audit.js\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  },
+  "hookProfile": "standard",
+  "disabledHooks": [],
+  "modelPreferences": {
+    "default": "claude-opus-4-6",
+    "fast": "claude-sonnet-4-6",
+    "research": "claude-opus-4-6",
+    "investor": "claude-opus-4-6"
+  },
+  "extendedThinking": true,
+  "contextFiles": [
+    "ABOUT-ME/about-me.md",
+    "ABOUT-ME/anti-ai-writing-style.md",
+    "ABOUT-ME/voice-profile.md",
+    "ABOUT-ME/global-instructions.md"
+  ],
+  "outputDirectory": "OUTPUTS",
+  "projectDirectories": {
+    "platform": "PROJECTS/platform",
+    "investors": "PROJECTS/investors",
+    "marketing": "PROJECTS/marketing",
+    "contracts": "PROJECTS/smart-contracts",
+    "tokenomics": "PROJECTS/tokenomics"
+  }
+}

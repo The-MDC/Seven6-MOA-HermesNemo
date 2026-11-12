@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: seven6moa-aggregate-cluster
+spec:
+  containers:
+    # 1. Central Core Aggregate Model Bridge (The MoA Aggregator)
+    - name: nvidia-aggregate-bridge
+      image: python:3.11-slim
+      command: ["python", "-m", "hermes.core.aggregator"]
+      env:
+        - name: TOTAL_ADVISORS
+          value: "6"
+        - name: AGGREGATE_MODEL_ENDPOINT
+          value: "https://nvidia.com"
+      volumeMounts:
+        - name: shared-context
+          mountPath: /app/context
+
+    # 2. Advisor Spoke 1: Strategy Profiler
+    - name: advisor-strategy
+      image: python:3.11-slim
+      command: ["python", "-m", "hermes.advisors.strategy"]
+      volumeMounts:
+        - name: shared-context
+          mountPath: /app/context
+
+    # 3. Advisor Spoke 2: Risk Analyst
+    - name: advisor-risk
+      image: node:20-slim
+      command: ["node", "dist/advisors/risk.js"]
+      volumeMounts:
+        - name: shared-context
+          mountPath: /app/context
+
+    # 4. Advisor Spoke 3: Technical Critic
+    - name: advisor-critic
+      image: python:3.11-slim
+      command: ["python", "-m", "hermes.advisors.critic"]
+      volumeMounts:
+        - name: shared-context
+          mountPath: /app/context
+
+    # 5. Advisor Spoke 4: Tool Specialist (Skills & Profiles Execution Engine)
+    - name: advisor-tools
+      image: python:3.11-slim
+      command: ["python", "-m", "hermes.advisors.tools"]
+      volumeMounts:
+        - name: shared-context
+          mountPath: /app/context
+
+    # 6. Advisor Spoke 5: Context Refiner
+    - name: advisor-context-refiner
+      image: python:3.11-slim
+      command: ["python", "-m", "hermes.advisors.context"]
+      volumeMounts:
+        - name: shared-context
+          mountPath: /app/context
+
+    # 7. Advisor Spoke 6: Guardrail & Protocol Auditor
+    - name: advisor-guardrail
+      image: node:20-slim
+      command: ["node", "dist/advisors/guardrail.js"]
+      volumeMounts:
+        - name: shared-context
+          mountPath: /app/context
+
+  volumes:
+    # High-speed memory-backed workspace layer for zero-latency Advisor IPC streaming
+    - name: shared-context
+      emptyDir: {}

@@ -939,9 +939,7 @@ excluded_providers:
   - google-vertex
   - vertex-ai
   - mistral
-  - deepseek
   - groq
-  - cerebras
   - xai
   - minimax
   - ollama
@@ -964,6 +962,30 @@ excluded_providers:
   - huggingface
   - hf
 
+# DeepSeek models are now routeable through Hermes via OpenRouter (or-fallback).
+# Previously excluded defensively to block Hermes' built-in catalog entry from
+# surfacing by drift. With the exclusion removed, deepseek models can be
+# explicitly referenced using /model custom:or-fallback:<deepseek-model-id>.
+#
+# Example:
+#   /model custom:or-fallback:deepseek-coder-v2-tools-160k
+#   /model custom:or-fallback:deepseek-v3
+#
+# Important notes:
+# - Deepseek models share the OpenRouter bucket (or-fallback), so they
+#   compete with MoA references 1&2 and aux slots compression/web_extract.
+# - No deepseek models added to MoA roster — keeps parent bucket free
+#   (~40 RPM shared with parent, subagents, aggregator, 3 NIM references).
+# - Fallback chain unchanged; deepseek models use OpenRouter's 429 escape
+#   (fallback 1: GLM-5.3-Flash) if NIM 429 occurs.
+# - Catalog drift prevented: picker does NOT auto-list deepseek (all providers
+#   have discover_models: false). Explicit /model reference required.
+# - credential_pool_strategies: or-fallback: fill_first applies to all
+#   OpenRouter models including deepseek.
+# - MoA presets completely unaffected — deepseek not in any preset roster.
+# - Verified: OpenRouter catalog has 31+ deepseek variants (checked 2026-10-27).
+# - Seven6 MOA version: 2026-10-21 baseline; integration adds no RPM cost
+#   to parent bucket since deepseek routes through OpenRouter, not NIM.
 # ---------------------------------------------------------------------------
 # VOICE — jamiepine/hermes-voicebox
 #

@@ -1,0 +1,14 @@
+manifest_version: 1
+name: seven6-trim
+version: 0.1.0
+description: >
+  Measures, and when switched to trim mode shortens, large tool results before they enter the model
+  context. Observe-only by default. Logs sizes only (tool name, characters, milliseconds), never content.
+author: Seven6
+license: MIT
+kind: standalone
+provides_hooks:
+  - transform_tool_result
+tags:
+  - tokens
+  - tool-results

@@ -1,0 +1,123 @@
+model:
+  provider: mylocal
+  default: moe-10b-a1b-8k-wsd-lr3e4-1t.IQ4_XS.gguf
+  temperature: 0.7
+  top_p: 0.95
+  base_url: http://127.0.0.1:8080/v1
+  api_mode: chat_completions
+  key_env: HERMES_CUSTOM_MYLOCAL_API_KEY
+providers:
+  mylocal:
+    name: MyLocal (llama.cpp router, this machine)
+    api: http://127.0.0.1:8080/v1
+    default_model: spark
+    models:
+      spark: {}
+    discover_models: false
+    base_url: http://127.0.0.1:8080/v1
+    model: spark
+    key_env: HERMES_CUSTOM_MYLOCAL_API_KEY
+moa:
+  reference_models:
+    - provider: custom:mylocal
+      model: gemma
+      enabled: true
+  aggregator:
+    provider: custom:mylocal
+    model: spark
+  presets:
+    default:
+      reference_models:
+        - provider: custom:mylocal
+          model: gemma
+          enabled: true
+      aggregator:
+        provider: custom:mylocal
+        model: spark
+_config_version: 52
+agent:
+  reasoning_effort: high
+platform_toolsets:
+  cli:
+    - terminal
+known_plugin_toolsets:
+  cli:
+    - a2a
+known_builtin_toolsets:
+  cli:
+    - browser
+    - clarify
+    - code_execution
+    - computer_use
+    - connections
+    - context_engine
+    - cronjob
+    - delegation
+    - discord
+    - discord_admin
+    - file
+    - image_gen
+    - kanban
+    - memory
+    - session_search
+    - skills
+    - stt
+    - terminal
+    - todo
+    - tts
+    - video
+    - video_gen
+    - vision
+    - web
+    - x_search
+    - yuanbao
+tools:
+  tool_search:
+    enabled: "off"
+auxiliary:
+  vision:
+    provider: auto
+    model: ''
+  compression:
+    provider: auto
+    model: ''
+  skills_hub:
+    provider: auto
+    model: ''
+  approval:
+    provider: auto
+    model: ''
+  review:
+    provider: auto
+    model: ''
+  mcp:
+    provider: auto
+    model: ''
+  title_generation:
+    provider: auto
+    model: ''
+  voice_chat:
+    provider: auto
+    model: ''
+  triage_specifier:
+    provider: auto
+    model: ''
+  kanban_decomposer:
+    provider: auto
+    model: ''
+  profile_describer:
+    provider: auto
+    model: ''
+  curator:
+    provider: auto
+    model: ''
+file_read_max_chars: 8000
+approvals:
+  timeout: 1280
+plugins:
+  enabled:
+    - voicebox
+  disabled: []
+platforms:
+  telegram:
+    enabled: false

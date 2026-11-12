@@ -1,0 +1,28 @@
+moa:
+  presets:
+    default:
+      reference_models:
+        - provider: nvidia
+          model: nvidia/nemotron-3-super-120b-a12b
+          enabled: true
+        - provider: nvidia
+          model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+          enabled: true
+      degraded_reference_policy: loud
+      fanout: user_turn
+      aggregator:
+        provider: nvidia
+        model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  reference_models:
+    - provider: nvidia
+      model: nvidia/nemotron-3-super-120b-a12b
+      enabled: true
+    - provider: nvidia
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      enabled: true
+  aggregator:
+    provider: nvidia
+    model: nvidia/nemotron-3.5-super-vl-120b-a12b
+  degraded_reference_policy: loud
+  fanout: user_turn
+  enabled: true

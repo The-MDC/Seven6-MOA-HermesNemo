@@ -1,0 +1,62 @@
+model:
+  # ClaudeHelp profile, 2026-11-10: NVIDIA NIM only, exactly two models --
+  # GLM-5.3 (flash) primary, DeepSeek V4.1 Flash as the arrayed fallback.
+  # LIVE-VERIFIED against GET https://integrate.api.nvidia.com/v1/models
+  # (no key needed) same day: both ids are listed as z-ai/glm-5.3-flash and
+  # deepseek-ai/deepseek-v4.1-flash. No other providers, no model_aliases --
+  # on request: "just these two models".
+  provider: nvidia-nim
+  default: z-ai/glm-5.3-flash
+  temperature: 1.0
+  top_p: 0.95
+  base_url: https://integrate.api.nvidia.com/v1
+  api_mode: chat_completions
+  key_env: NVIDIA_API_KEY
+providers:
+  nvidia-nim:
+    name: NVIDIA NIM (build.nvidia.com)
+    api: https://integrate.api.nvidia.com/v1
+    key_env: NVIDIA_API_KEY
+    transport: chat_completions
+    default_model: z-ai/glm-5.3-flash
+    models:
+      - z-ai/glm-5.3-flash
+      - deepseek-ai/deepseek-v4.1-flash
+    discover_models: false
+    context_length: 131072
+fallback_providers:
+  # Arrayed fallback, same endpoint/bucket as the parent (on request: both
+  # models live on NVIDIA NIM only). This answers a failure of the GLM model
+  # id, not a 429 on the NIM endpoint itself -- there is no second endpoint
+  # in this profile to escape a 429 to, by design ("just these two models").
+  - provider: nvidia-nim
+    model: deepseek-ai/deepseek-v4.1-flash
+    base_url: https://integrate.api.nvidia.com/v1
+    key_env: NVIDIA_API_KEY
+agent:
+  reasoning_effort: xhigh
+_config_version: 52
+mcp_servers:
+  supabase:
+    url: https://mcp.supabase.com/mcp
+    auth: oauth
+    enabled: true
+  vercel:
+    url: https://mcp.vercel.com
+    auth: oauth
+    enabled: true
+  # GitHub: no hosted OAuth entry in the Hermes connector catalog (only
+  # `deepwiki`, which is read-only repo Q&A). Uses the official local MCP
+  # server with the GITHUB_TOKEN already shared into this profile's .env --
+  # same token already used by the main and seven6moa profiles.
+  github:
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
+    tools:
+      prompts: false
+      resources: false
+      unfiltered: true
+# Nine-perspective / multi-perspective review (hermes-council) deliberately
+# NOT included in this profile -- dropped on request.

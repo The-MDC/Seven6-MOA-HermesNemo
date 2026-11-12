@@ -1,0 +1,119 @@
+# Hermes Agent -- Vision Profile
+# Image-to-image, image-to-video, text-to-image, text-to-video generation pipeline
+# Primary: OpenRouter API for LLM inference
+# Fallback: Hugging Face model downloads
+# Local: Ollama GGUF models (Hermes 3 3B Q8_0, Moe 10b Q8_0)
+
+# ============================================================
+# PROVIDER CONFIGURATION
+# ============================================================
+
+# OpenRouter - Primary inference gateway (cloud LLM access via single API key)
+providers:
+  openrouter:
+    name: "OpenRouter (cloud LLM gateway)"
+    api: https://openrouter.ai/api/v1
+    key_env: OPENROUTER_API_KEY
+    transport: chat_completions
+    # Model fallback chain (1st = primary, others = fallback on failure)
+    fallback_providers:
+      - hf.co/unsloth/MiniMax-H3-GGUF  # MiniMax H3 text encoder/UNet via HF
+      - hf.co/Lightning-AI/sdxl-lightning-2-step  # SDXL I2I via HF
+      - hf.co/mradermacher/moe-10b-a1b-8k-wsd-lr3e4-1t-GGUF  # MoE text model via HF
+
+# ============================================================
+# LOCAL TIER (Ollama GGUF models already installed)
+# ============================================================
+
+# Local Ollama server - no API key needed, runs on 127.0.0.1:11434
+local:
+  name: "Ollama (local GGUF models)"
+  # Base URL for Ollama API
+  base_url: http://127.0.0.1:11434
+  # Default model for text inference
+  default_model: hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0
+  # Available local models (Q8_0 as per "better than Q4" preference)
+  models:
+    - hf.co/mradermacher/Hermes-3-Llama-3.2-3B-abliterated-GGUF:Q8_0  # Hermes 3 Llama 3.2 3B
+    - hf.co/mradermacher/moe-10b-a1b-8k-wsd-lr3e4-1t-GGUF:Q8_0  # Moe 10B MoE
+
+# ============================================================
+# VISION / IMAGE-VIDEO TIER
+# ============================================================
+
+# ComfyUI local HTTP API (built-in, no API key needed)
+comfyui:
+  name: "ComfyUI (I2I/I2V framework)"
+  base_url: http://127.0.0.1:8188
+  # No API key required for local use
+  # Endpoints:
+  #   POST /prompt - generate images/videos
+  #   GET /system_stats - status
+  #   GET /model_stats - model info
+
+# Vision-specific model slots
+vision:
+  # Image-to-image (SDXL Lightning) - falls through to OpenRouter/HF
+  i2i:
+    model: hf.co/Lightning-AI/sdxl-lightning-2-step
+    steps: 2  # 2-step denoise (fast, good quality)
+    # Alternative: 4-step for slightly better quality
+    # steps: 4
+  # Image-to-video (MiniMax H3 UNet Q8_0)
+  i2v:
+    # UNet model goes in ComfyUI/models/unet/
+    # filename: minimax_h3_fl2va_pruned-Q8_0.gguf
+    # Source: https://huggingface.co/unsloth/MiniMax-H3-GGUF/resolve/main/minimax_h3_fl2va_pruned-Q8_0.gguf
+    unet_model: minimax_h3_fl2va_pruned-Q8_0.gguf
+    # ComfyUI node extension required: "MiniMax" or "H3" for full I2V support
+    # Without extension: basic Unet loader node only
+  # Text-to-image
+  ti2i:
+    # SDXL checkpoint goes in ComfyUI/models/checkpoints/
+    checkpoint: sdxl_lightning_2step.safetensors
+    # Source: https://huggingface.co/Lightning-AI/sdxl-lightning-2-step/resolve/main/sdxl_lightning_2step.safetensors
+  # Text-to-video
+  ti2v:
+    # Requires compatible video diffusion setup
+    # Currently: OpenRouter LLM description + ComfyUI pipeline
+
+# ============================================================
+# FALLBACK CHAIN
+# ============================================================
+
+# Fallback order when OpenRouter fails or is unavailable
+fallback_chain:
+  1: openrouter  # Primary - cloud LLM via API key
+  2: local       # Secondary - Ollama GGUF models on localhost
+  3: hf.co/      # Tertiary - Hugging Face direct downloads
+
+# ============================================================
+# CONFIGURATION NOTES
+# ============================================================
+
+# KEY PLACEMENT: 
+# - OPENROUTER_API_KEY goes in ~/.hermes/.env (chmod 600) 
+#   or export: $env:OPENROUTER_API_KEY="sk-or-v1-..." in PowerShell 7+
+# - NVIDIA_API_KEY goes separately if enabling NVIDIA NIM
+# - No keys needed for local Ollama or ComfyUI
+
+# MODEL PLACEMENT (ComfyUI):
+# - SDXL Lightning checkpoint: ComfyUI-Shared/models/checkpoints/
+# - MiniMax H3 UNet Q8_0: ComfyUI-Shared/models/unet/
+# - Both require ComfyUI refresh after placement
+
+# HF DOWNLOAD PATTERNS:
+# - SDXL Lightning: curl -L "https://huggingface.co/Lightning-AI/sdxl-lightning-2-step/resolve/main/sdxl_lightning_2step.safetensors" -o sdxl_lightning_2step.safetensors
+# - MiniMax H3 UNet: curl -L "https://huggingface.co/unsloth/MiniMax-H3-GGUF/resolve/main/minimax_h3_fl2va_pruned-Q8_0.gguf" -o minimax_h3_fl2va_pruned-Q8_0.gguf
+# - MoE text encoder: curl -L "https://huggingface.co/mradermacher/moe-10b-a1b-8k-wsd-lr3e4-1t-GGUF/resolve/main/moe-10b-a1b-8k-wsd-lr3e4-1t-GGUF-Q8_0.gguf" -o moe-10b-Q8_0.gguf
+
+# ============================================================
+# SEVEN6MOA COMPLIANCE
+# ============================================================
+
+# IMPORTANT: This Vision profile does NOT modify the Seven6MOA config.yaml
+# Seven6MOA remains unchanged at: C:\Users\nicholasjmcleod\Seven6-Hermes-MOA\configs\hermes\config.yaml
+# This profile is independent and can be swapped/activated without affecting Seven6MOA
+
+# To activate this profile: hermes --profile Vision
+# To switch back: hermes --profile seven6moa
